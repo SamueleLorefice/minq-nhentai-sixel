@@ -1,4 +1,5 @@
 import bs4
+import json
 
 from .constants import SOUP_PARSER, URL_INDEX
 from .models import Artist, Category, Character, Group, Hentai, Language, Parody, Tag
@@ -76,16 +77,60 @@ def scrape_hentais(url_page):
             id_ = link.split("/")[-2]
             id_ = int(id_)
 
-            data = receive(link)
-            soup = bs4.BeautifulSoup(data, SOUP_PARSER)
+            # Fetch gallery data from official API for reliable extraction
+            soup = None
+            try:
+                api_url = f"https://nhentai.net/api/v2/galleries/{id_}"
+                api_response = receive(api_url)
+                api_data = json.loads(api_response)
 
-            thumb_tag = soup.find(class_="lazyload")
-            if thumb_tag is None:
-                thumb_tag = soup.find("img")
-            if thumb_tag is not None:
-                thumb = thumb_tag.get("data-minq_nhentai", thumb_tag.get("minq_nhentai"))
-            else:
-                thumb = None
+                # Extract thumbnail URL from API
+                thumb_obj = api_data.get("thumbnail", {})
+                thumb_path = thumb_obj.get("path")
+                if thumb_path:
+                    thumb = f"https://t.nhentai.net/{thumb_path}"
+                else:
+                    thumb = None
+
+                # Extract page count from API
+                pages = api_data.get("num_pages")
+
+            except Exception:
+                # Fallback to HTML scraping if API fails
+                data = receive(link)
+                soup = bs4.BeautifulSoup(data, SOUP_PARSER)
+
+                thumb_tag = soup.find(class_="lazyload")
+                if thumb_tag is None:
+                    thumb_tag = soup.find("img")
+                if thumb_tag is not None:
+                    src = thumb_tag.get("src")
+                    if src and ("nhentai.net" in src or "t" in src):
+                        thumb = src
+                    else:
+                        thumb = None
+                else:
+                    thumb = None
+
+                # Parse page count from HTML as fallback
+                containers = soup.find_all(class_="tag-container field-name") + soup.find_all(
+                    class_="tag-container field-name hidden"
+                )
+                pages = None
+                for container in containers:
+                    meta = container.text.strip().replace("\n", "").replace("\t", "")
+                    if meta.startswith("Pages:"):
+                        pages_str = meta[len("Pages:"):].strip()
+                        try:
+                            pages = int(pages_str)
+                        except ValueError:
+                            pages = None
+                        break
+
+            # If API succeeded but we don't have soup yet, get it for tag extraction
+            if soup is None:
+                data = receive(link)
+                soup = bs4.BeautifulSoup(data, SOUP_PARSER)
 
             containers = soup.find_all(class_="tag-container field-name") + soup.find_all(
                 class_="tag-container field-name hidden"
@@ -97,15 +142,11 @@ def scrape_hentais(url_page):
             characters = []
             artists = []
             groups = []
-            pages = None
             uploaded = None
             for container in containers:
                 meta, n, l, c = scrape_tag_container(container)
 
-                if meta.startswith("Pages:"):
-                    pages = meta[len("Pages:") :]
-                    pages = int(pages)
-                elif meta.startswith("Uploaded:"):
+                if meta.startswith("Uploaded:"):
                     uploaded = meta[len("Uploaded:") :] + " (this time is currently bugged)"
                 else:
                     for n, l, c in zip(n, l, c):
