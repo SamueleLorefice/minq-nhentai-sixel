@@ -1,3 +1,4 @@
+import json
 import os
 import threading
 import time
@@ -102,6 +103,9 @@ class Hentai:
         self.print_thumb()
 
     def print_thumb(self):
+        if self.thumb_url is None:
+            print("[Thumbnail unavailable]")
+            return
         if not self.image_cached(THUMB_NAME):
             self.image_cache(self.thumb_url, THUMB_NAME)
         self.image_print(THUMB_NAME)
@@ -133,16 +137,54 @@ class Hentai:
     def download_in_background(self):
         def download_all_pages():
             try:
+                # Fetch page URLs from API instead of scraping HTML
+                try:
+                    api_url = f"https://nhentai.net/api/v2/galleries/{self.id_}"
+                    api_response = receive(api_url, silent=True)
+                    api_data = json.loads(api_response)
+                    pages_data = api_data.get("pages", [])
+                except Exception:
+                    pages_data = []
+                
                 for page_num in range(1, self.pages + 1):
                     if self.downloading_pages_in_background is False:
                         break
 
-                    url = URL_READ.format(id=self.id_, page=page_num)
-                    data = receive(url, silent=True)
-
-                    soup = bs4.BeautifulSoup(data, SOUP_PARSER)
-                    link = soup.find(id="image-container").img["minq_nhentai"]
-                    self.image_cache(link, str(page_num), silent=False)
+                    # Try to get URL from API data first
+                    page_url = None
+                    if page_num - 1 < len(pages_data):
+                        page_path = pages_data[page_num - 1].get("path")
+                        if page_path:
+                            page_url = f"https://t.nhentai.net/{page_path}"
+                    
+                    # Fallback: construct URL manually (works for most cases)
+                    if not page_url:
+                        # Try common formats: .webp, .jpg, .png, .gif
+                        media_id = self.link.split("/g/")[1].split("/")[0]
+                        for ext in [".webp", ".jpg", ".png", ".gif"]:
+                            page_url = f"https://t.nhentai.net/galleries/{media_id}/{page_num}{ext}"
+                            try:
+                                # Test if URL is valid
+                                head_response = receive_raw(page_url, silent=True)
+                                if head_response:
+                                    break
+                            except Exception:
+                                page_url = None
+                        
+                        # Last resort: use the read page scraper (slower)
+                        if not page_url:
+                            url = URL_READ.format(id=self.id_, page=page_num)
+                            data = receive(url, silent=True)
+                            soup = bs4.BeautifulSoup(data, SOUP_PARSER)
+                            try:
+                                img_tag = soup.find(id="image-container")
+                                if img_tag:
+                                    page_url = img_tag.img.get("src") or img_tag.img.get("data-src")
+                            except Exception:
+                                pass
+                    
+                    if page_url:
+                        self.image_cache(page_url, str(page_num), silent=False)
             finally:
                 self.downloading_pages_in_background = False
 
