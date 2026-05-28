@@ -353,6 +353,21 @@ def scrape_tag_container(container):
     assert len(tags) == len(tag_names) == len(tag_counts) == len(tag_links)
     return meta, tag_names, tag_links, tag_counts
 
+def scrape_index_hentai_cards(soup):
+    hentais = []
+    for card in soup.find_all('a', href=True):
+        href = card['href']
+        if not href.startswith('/g/'):
+            continue
+
+        gallery_id = href[len('/g/'):].split('/')[0]
+        if not gallery_id.isdigit():
+            continue
+
+        hentais.append(card)
+
+    return hentais
+
 def scrape_hentais(url_page):
     page_num = 0
     while True:
@@ -363,8 +378,7 @@ def scrape_hentais(url_page):
 
         soup = bs4.BeautifulSoup(data, SOUP_PARSER)
 
-        container = soup.find(class_='container index-container')
-        hentais_in_container = container.find_all(class_='cover')
+        hentais_in_container = scrape_index_hentai_cards(soup)
         if len(hentais_in_container) == 0:
             while True: yield
 
@@ -373,8 +387,15 @@ def scrape_hentais(url_page):
             if link.endswith('/'): link = link[1:]
             link = URL_INDEX + link
 
-            thumb_smol = hentai.find(class_='lazyload')['data-src']
-            title = hentai.find(class_='caption').text
+            title_tag = hentai.find(class_='caption')
+            if title_tag != None:
+                title = title_tag.text
+            else:
+                title = hentai.get('title')
+                if title == None or title.strip() == '':
+                    title = hentai.get_text(' ', strip=True)
+                if title.strip() == '':
+                    title = link
 
             id_ = link.split('/')[-2]
             id_ = int(id_)
@@ -382,7 +403,13 @@ def scrape_hentais(url_page):
             data = receive(link)
             soup = bs4.BeautifulSoup(data, SOUP_PARSER)
 
-            thumb = soup.find(class_='lazyload')['data-src']
+            thumb_tag = soup.find(class_='lazyload')
+            if thumb_tag == None:
+                thumb_tag = soup.find('img')
+            if thumb_tag != None:
+                thumb = thumb_tag.get('data-src', thumb_tag.get('src'))
+            else:
+                thumb = None
 
             more_like_this = soup.find(id='related-container') # TODO unfinished
 
