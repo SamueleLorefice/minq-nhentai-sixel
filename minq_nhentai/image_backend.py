@@ -1,0 +1,123 @@
+import os
+import shutil
+import subprocess
+
+from .constants import (
+    IMAGE_BACKEND_AUTO,
+    IMAGE_BACKEND_DEFAULT,
+    IMAGE_BACKEND_SIXEL,
+    IMAGE_BACKEND_VIU,
+)
+from .ui import print
+
+_image_backend_requested = IMAGE_BACKEND_DEFAULT
+_image_backend_resolved = None
+_image_backend_fallback_done = False
+
+
+def _env_truthy(name):
+    value = os.getenv(name)
+    if value is None:
+        return False
+    return value.strip().lower() in ("1", "true", "yes", "on")
+
+
+def terminal_supports_sixel():
+    if _env_truthy("MINQ_NHENTAI_NO_SIXEL"):
+        return False
+    if _env_truthy("MINQ_NHENTAI_SIXEL"):
+        return True
+
+    term = (os.getenv("TERM") or "").lower()
+    term_program = (os.getenv("TERM_PROGRAM") or "").lower()
+
+    if "sixel" in term:
+        return True
+    if term.startswith("mlterm"):
+        return True
+    if "yaft" in term:
+        return True
+    if term_program in ("wezterm", "mintty"):
+        return True
+    if os.getenv("WT_SESSION"):
+        return True
+    return False
+
+
+def _has_bin(name):
+    return shutil.which(name) is not None
+
+
+def _resolve_image_backend(requested):
+    if requested == IMAGE_BACKEND_VIU:
+        if not _has_bin("viu"):
+            raise RuntimeError("Requested image backend viu, but executable was not found in PATH")
+        return IMAGE_BACKEND_VIU
+
+    if requested == IMAGE_BACKEND_SIXEL:
+        if not _has_bin("img2sixel"):
+            raise RuntimeError("Requested image backend sixel, but img2sixel was not found in PATH")
+        if not terminal_supports_sixel():
+            raise RuntimeError("Requested image backend sixel, but terminal does not look sixel-capable")
+        return IMAGE_BACKEND_SIXEL
+
+    if requested != IMAGE_BACKEND_AUTO:
+        raise RuntimeError(f"Unknown image backend: {requested}")
+
+    if _has_bin("img2sixel") and terminal_supports_sixel():
+        return IMAGE_BACKEND_SIXEL
+    if _has_bin("viu"):
+        return IMAGE_BACKEND_VIU
+    if _has_bin("img2sixel"):
+        return IMAGE_BACKEND_SIXEL
+
+    raise RuntimeError("No supported image backend found. Install viu or img2sixel (libsixel).")
+
+
+def configure_image_backend(requested):
+    global _image_backend_requested
+    global _image_backend_resolved
+    global _image_backend_fallback_done
+
+    _image_backend_requested = requested
+    _image_backend_resolved = _resolve_image_backend(requested)
+    _image_backend_fallback_done = False
+    print(f"Using image backend: {_image_backend_resolved} (requested: {requested})")
+
+
+def _render_with_backend(path, backend):
+    if backend == IMAGE_BACKEND_SIXEL:
+        cmd = ["img2sixel", path]
+    elif backend == IMAGE_BACKEND_VIU:
+        cmd = ["viu", path]
+    else:
+        raise RuntimeError(f"Unsupported image backend: {backend}")
+
+    subprocess.run(cmd, check=True, capture_output=False)
+
+
+def render_image(path):
+    global _image_backend_resolved
+    global _image_backend_fallback_done
+
+    if _image_backend_resolved is None:
+        configure_image_backend(IMAGE_BACKEND_DEFAULT)
+
+    try:
+        _render_with_backend(path, _image_backend_resolved)
+    except subprocess.CalledProcessError as exc:
+        if (
+            _image_backend_requested == IMAGE_BACKEND_AUTO
+            and _image_backend_resolved == IMAGE_BACKEND_SIXEL
+            and not _image_backend_fallback_done
+            and _has_bin("viu")
+        ):
+            _image_backend_fallback_done = True
+            _image_backend_resolved = IMAGE_BACKEND_VIU
+            print("Sixel render failed in auto mode, falling back to viu")
+            _render_with_backend(path, _image_backend_resolved)
+            return
+        raise RuntimeError(
+            f"Image backend {_image_backend_resolved} failed with exit code {exc.returncode}"
+        ) from exc
+
