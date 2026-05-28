@@ -1,6 +1,9 @@
 import os
 import shutil
 import subprocess
+import tempfile
+
+from PIL import Image
 
 from .constants import (
     IMAGE_BACKEND_AUTO,
@@ -13,6 +16,37 @@ from .ui import print
 _image_backend_requested = IMAGE_BACKEND_DEFAULT
 _image_backend_resolved = None
 _image_backend_fallback_done = False
+
+
+def _is_webp(path):
+    try:
+        with open(path, "rb") as f:
+            header = f.read(12)
+    except OSError:
+        return False
+
+    return len(header) >= 12 and header[:4] == b"RIFF" and header[8:12] == b"WEBP"
+
+
+def _render_with_webp_transcode_fallback(path, backend):
+    with tempfile.NamedTemporaryFile(suffix=".png", delete=False) as tmp:
+        tmp_path = tmp.name
+
+    try:
+        with Image.open(path) as img:
+            img.save(tmp_path, format="PNG")
+
+        if backend == IMAGE_BACKEND_SIXEL:
+            cmd = ["img2sixel", tmp_path]
+        elif backend == IMAGE_BACKEND_VIU:
+            cmd = ["viu", tmp_path]
+        else:
+            raise RuntimeError(f"Unsupported image backend: {backend}")
+
+        subprocess.run(cmd, check=True, capture_output=False)
+    finally:
+        if os.path.exists(tmp_path):
+            os.remove(tmp_path)
 
 
 def _env_truthy(name):
@@ -93,7 +127,14 @@ def _render_with_backend(path, backend):
     else:
         raise RuntimeError(f"Unsupported image backend: {backend}")
 
-    subprocess.run(cmd, check=True, capture_output=False)
+    try:
+        subprocess.run(cmd, check=True, capture_output=False)
+    except subprocess.CalledProcessError:
+        # Debian's libsixel/viu builds can miss WebP support; transcode for compatibility.
+        if _is_webp(path):
+            _render_with_webp_transcode_fallback(path, backend)
+            return
+        raise
 
 
 def render_image(path):
