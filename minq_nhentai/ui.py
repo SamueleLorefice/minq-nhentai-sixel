@@ -19,6 +19,12 @@ _print_tmp_last_len = 0
 _print_tmp_lock = threading.Lock()
 
 
+def _clear_tmp_line_if_any():
+    global _print_tmp_last_len
+    if _print_tmp_last_len > 0:
+        _print(" " * _print_tmp_last_len, end="\r")
+
+
 def print(*a, **kw):
     _print_tmp_lock.acquire()
     global _print_tmp_last_msg
@@ -31,8 +37,7 @@ def print(*a, **kw):
         kw["file"] = file_bak
     out = fake_stdout.getvalue()
     first_line_len = len(out.split("\n")[0])
-    if first_line_len < _print_tmp_last_len:
-        _print(" " * _print_tmp_last_len, end="\r")
+    _clear_tmp_line_if_any()
     _print_tmp_last_msg = ""
     _print_tmp_last_count = 1
     _print_tmp_last_len = 0
@@ -48,6 +53,7 @@ def print_tmp(msg):
     assert "\n" not in msg
 
     last_len = _print_tmp_last_len
+    _clear_tmp_line_if_any()
     _print_tmp_last_len = len(msg)
 
     if msg == _print_tmp_last_msg:
@@ -60,8 +66,6 @@ def print_tmp(msg):
     _print_tmp_last_msg = msg
 
     _print(msg, end="")
-    if last_len > len(msg):
-        _print(" " * (last_len - len(msg)), end="")
     _print("\r", end="", flush=True)
 
     _print_tmp_lock.release()

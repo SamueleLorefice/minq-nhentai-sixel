@@ -2,7 +2,7 @@ import sys
 import urllib.parse
 
 from .constants import URL_INDEX, URL_PAGE_POSTFIX, URL_SEARCH
-from .scrape import scrape_hentais, tag_exists
+from .scrape import get_hentai_by_id, scrape_hentais, tag_exists
 from .ui import alert, input, print, print_tmp
 
 
@@ -29,7 +29,7 @@ def _build_search_query(search_term, required_tags, required_language, required_
 
 
 def interactive_hentai_enjoyment(
-    search_term=None, required_tags=None, required_language=None, required_artist=None
+    search_term=None, required_tags=None, required_language=None, required_artist=None, gallery_id=None
 ):
     cmds = []
     cmds.append(cmd_quit := ["quit", "q", "exit", "e"])
@@ -40,6 +40,37 @@ def interactive_hentai_enjoyment(
 
     assert type(required_tags) in (list, tuple)
     assert type(required_language) in (str, type(None))
+
+    if gallery_id is not None:
+        try:
+            hentai = get_hentai_by_id(gallery_id, silent=True)
+        except Exception as exc:
+            print(f"Could not load gallery {gallery_id}: {exc}")
+            sys.exit(1)
+
+        running = True
+        while running:
+            hentai.show()
+
+            c = input("> ", cmd_quit[0])
+            if c == "":
+                c = cmd_read[0]
+
+            if c in cmd_quit:
+                running = False
+            elif c in cmd_read:
+                hentai.reading_loop()
+            elif c in cmd_download:
+                hentai.download_in_background()
+            elif c in cmd_next or c in cmd_prev:
+                alert("Direct gallery mode only has one gallery loaded")
+            else:
+                print(f"Unknown command: {c}")
+                print("List of available commands:")
+                for cmd in cmds:
+                    print(f"-> {cmd}")
+                alert()
+        return
 
     if required_artist is not None:
         if not tag_exists("artist", required_artist):

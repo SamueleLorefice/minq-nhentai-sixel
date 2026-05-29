@@ -1,45 +1,18 @@
-"""
-nhentai API v2
+"""nhentai API v2 access helpers."""
 
-Data fetched from the official REST API.
-
-Rate limits (anonymous / no API key):
-  GET /api/v2/galleries              – 15 req/min per IP
-  GET /api/v2/galleries/tagged       – 15 req/min per IP
-  GET /api/v2/search                 – 10 req/min per IP
-  GET /api/v2/galleries/{id}         – 20 req/min per IP
-  GET /api/v2/tags/{type}/{slug}     – 15 req/min per IP
-
-All 429 responses carry a Retry-After header; we honor it.
-"""
-
-import json
 import re
 import urllib.parse
 
-from .constants import API_BASE, CDN_BASE, NET_TOO_MANY_REQUESTS_SLEEP, URL_INDEX
-from .errors import Exception_net_page_not_found
+from .api import api_get
+from .constants import URL_INDEX
 from .models import Artist, Category, Character, Group, Hentai, Language, Parody, Tag
-from .net import receive_raw
-from .ui import print_tmp
-
-def _api_get(path, params=None, silent=False):
-    """Make a GET request to the nhentai API v2 and return the parsed JSON response as a dict or list."""
-    url = API_BASE + path
-    if params:
-        url += "?" + urllib.parse.urlencode(
-            {k: v for k, v in params.items() if v is not None}
-        )
-    raw = receive_raw(url, silent=silent)
-    return json.loads(raw)
-
-def _cdn_url(path):
-    """Build a full CDN URL from a relative path (e.g. 'galleries/123/thumb.webp')."""
-    if not path:
-        return None
-    return f"{CDN_BASE}/{path}"
 
 _tag_cache: dict = {}
+
+
+def _yield_end_of_stream():
+    while True:
+        yield
 
 def _resolve_tag(tag_type, slug):
     """
@@ -50,7 +23,7 @@ def _resolve_tag(tag_type, slug):
     key = (tag_type, slug)
     if key in _tag_cache:
         return _tag_cache[key]
-    data = _api_get(f"/tags/{tag_type}/{slug}")
+    data = api_get(f"/tags/{tag_type}/{slug}")
     _tag_cache[key] = data
     return data
 
@@ -79,8 +52,7 @@ def _build_hentai(detail):
 
     # thumbnail is CoverInfo {path, width, height}
     thumb_obj = detail.get("thumbnail", {})
-    thumb_path = thumb_obj.get("path") if isinstance(thumb_obj, dict) else thumb_obj
-    thumb = _cdn_url(thumb_path)
+    thumb = thumb_obj.get("path") if isinstance(thumb_obj, dict) else thumb_obj
 
     tags = []
     languages = []
@@ -113,6 +85,21 @@ def _build_hentai(detail):
             groups.append(Group(name, tag_url, count))
 
     pages = detail.get("num_pages")
+    page_assets = []
+    for page in detail.get("pages", []) or []:
+        if not isinstance(page, dict):
+            page_assets.append({})
+            continue
+        page_assets.append(
+            {
+                "page_path": page.get("path"),
+                "thumb_path": page.get("thumbnail"),
+                "width": page.get("width"),
+                "height": page.get("height"),
+                "thumb_width": page.get("thumbnail_width"),
+                "thumb_height": page.get("thumbnail_height"),
+            }
+        )
 
     upload_date = detail.get("upload_date")
     uploaded = str(upload_date) if upload_date else None
@@ -131,7 +118,14 @@ def _build_hentai(detail):
         characters,
         artists,
         groups,
+        page_assets,
     )
+
+
+def get_hentai_by_id(gallery_id, silent=True):
+    """Fetch a single gallery directly by nhentai gallery id."""
+    detail = api_get(f"/galleries/{gallery_id}", silent=silent)
+    return _build_hentai(detail)
 
 def _parse_url_page(url_page):
     """
@@ -193,11 +187,10 @@ def scrape_hentais(url_page):
         params = {**base_params, "page": page_num}
 
         try:
-            result = _api_get(api_path, params)
+            result = api_get(api_path, params)
         except Exception:
             # No more pages or unrecoverable error → signal end of stream
-            while True:
-                yield
+            yield from _yield_end_of_stream()
             return
 
         # PaginatedResponse_GalleryListItem_ uses "result" (not "results")
@@ -212,8 +205,7 @@ def scrape_hentais(url_page):
             total_pages = None
 
         if not items:
-            while True:
-                yield
+            yield from _yield_end_of_stream()
             return
 
         for item in items:
@@ -224,15 +216,14 @@ def scrape_hentais(url_page):
 
             # Fetch full gallery detail for tags, page list, precise thumbnail
             try:
-                detail = _api_get(f"/galleries/{gallery_id}", silent=True)
+                detail = api_get(f"/galleries/{gallery_id}", silent=True)
             except Exception:
                 continue
 
             yield _build_hentai(detail)
 
         # Stop iterating when we've consumed all pages
-        if total_pages is not None and page_num >= total_pages:
-            while True:
-                yield
+        if isinstance(total_pages, int) and page_num >= total_pages:
+            yield from _yield_end_of_stream()
             return
 

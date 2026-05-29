@@ -1,13 +1,9 @@
-import json
-import os
 import threading
 import time
 
-import bs4
-
-from .constants import DONE_POSTFIX, HENTAIS_DIR, SOUP_PARSER, THUMB_NAME, URL_READ, WAIT_FOR_PAGE_DOWNLOAD_SLEEP
-from .image_backend import render_image
-from .net import receive, receive_raw
+from .api import get_gallery_detail, iter_cdn_urls
+from .cache import HentaiCache
+from .constants import THUMB_NAME, WAIT_FOR_PAGE_DOWNLOAD_SLEEP
 from .ui import alert, input, print, print_tmp
 
 
@@ -27,6 +23,7 @@ class Hentai:
         characters,
         artists,
         groups,
+        page_assets=None,
     ):
         self.id_ = id_
         self.title = title
@@ -41,8 +38,78 @@ class Hentai:
         self.characters = characters
         self.artists = artists
         self.groups = groups
+        self.page_assets = self._normalize_page_assets(page_assets)
+        self.cache = HentaiCache(self.id_)
 
         self.stop_downloading_in_background()
+
+    def _normalize_page_assets(self, page_assets):
+        if not isinstance(page_assets, list):
+            return [None] * self.pages
+
+        normalized = []
+        for index in range(self.pages):
+            item = page_assets[index] if index < len(page_assets) else None
+            if not isinstance(item, dict):
+                item = {}
+            normalized.append(
+                {
+                    "page_path": item.get("page_path"),
+                    "thumb_path": item.get("thumb_path"),
+                    "width": item.get("width"),
+                    "height": item.get("height"),
+                    "thumb_width": item.get("thumb_width"),
+                    "thumb_height": item.get("thumb_height"),
+                }
+            )
+        return normalized
+
+    def _page_asset(self, page_num):
+        if page_num < 1 or page_num > len(self.page_assets):
+            return None
+        return self.page_assets[page_num - 1]
+
+    def _thumb_cache_name(self, page_num):
+        return f"page_{page_num}_thumb"
+
+    def _page_cache_name(self, page_num):
+        return str(page_num)
+
+    def _page_urls(self, page_num, kind):
+        asset = self._page_asset(page_num)
+        if asset is None:
+            return []
+        path = asset.get("thumb_path") if kind == "thumb" else asset.get("page_path")
+        if not path:
+            return []
+        return list(iter_cdn_urls(path, kind))
+
+    def _prefetch_metadata_if_needed(self):
+        needs_metadata = len(self.page_assets) != self.pages or any(
+            not isinstance(asset, dict) or (asset.get("page_path") is None and asset.get("thumb_path") is None)
+            for asset in self.page_assets
+        )
+        if not needs_metadata:
+            return
+
+        detail = get_gallery_detail(self.id_, silent=True)
+        pages = detail.get("pages", []) if isinstance(detail, dict) else []
+        page_assets = []
+        for page in pages:
+            if not isinstance(page, dict):
+                page_assets.append({})
+                continue
+            page_assets.append(
+                {
+                    "page_path": page.get("path"),
+                    "thumb_path": page.get("thumbnail"),
+                    "width": page.get("width"),
+                    "height": page.get("height"),
+                    "thumb_width": page.get("thumbnail_width"),
+                    "thumb_height": page.get("thumbnail_height"),
+                }
+            )
+        self.page_assets = self._normalize_page_assets(page_assets)
 
     def __eq__(self, other):
         if type(self) is not type(other):
@@ -50,45 +117,31 @@ class Hentai:
         return self.id_ == other.id_
 
     def image_path(self, img):
-        path = HENTAIS_DIR + str(self.id_) + "/" + img
-        dir_ = os.path.dirname(path)
-        if not os.path.isdir(dir_):
-            os.makedirs(dir_)
-        return path
+        return self.cache.image_path(img)
 
     def image_cached(self, img):
-        path = self.image_path(img)
-        done = path + DONE_POSTFIX
-        return os.path.isfile(done)
+        return self.cache.image_cached(img)
 
     def image_set_cached(self, img):
-        path = self.image_path(img)
-        done = path + DONE_POSTFIX
-        with open(done, "w"):
-            pass
+        self.cache.image_set_cached(img)
 
     def image_unset_cached(self, img):
-        path = self.image_path(img)
-        done = path + DONE_POSTFIX
-        if os.path.isfile(done):
-            os.remove(done)
+        self.cache.image_unset_cached(img)
 
     def image_cache(self, url, img, silent=False):
-        self.image_unset_cached(img)
-        data = receive_raw(url, silent=silent)
-        with open(self.image_path(img), "wb") as f:
-            f.write(data)
-        self.image_set_cached(img)
+        self.cache.image_cache(url, img, silent=silent)
+
+    def image_cache_any(self, urls, img, silent=False):
+        self.cache.image_cache_any(urls, img, silent=silent)
 
     def image_print(self, img):
-        assert self.image_cached(img)
-        path = self.image_path(img)
-        render_image(path)
+        self.cache.image_print(img)
 
     def image_print_cache(self, url, img):
-        if not self.image_cached(img):
-            self.image_cache(url, img)
-        self.image_print(img)
+        self.cache.image_print_cache(url, img)
+
+    def image_print_cache_any(self, urls, img, silent=False):
+        self.cache.image_print_cache_any(urls, img, silent=silent)
 
     def show(self):
         print(f"Title: {self.title}")
@@ -107,8 +160,38 @@ class Hentai:
             print("[Thumbnail unavailable]")
             return
         if not self.image_cached(THUMB_NAME):
-            self.image_cache(self.thumb_url, THUMB_NAME)
+            self.image_cache_any(iter_cdn_urls(self.thumb_url, "thumb"), THUMB_NAME)
         self.image_print(THUMB_NAME)
+
+    def ensure_page_thumb_cached(self, page_num, silent=False):
+        cache_name = self._thumb_cache_name(page_num)
+        if self.image_cached(cache_name):
+            return True
+
+        urls = self._page_urls(page_num, "thumb")
+        if not urls:
+            return False
+
+        self.image_cache_any(urls, cache_name, silent=silent)
+        return True
+
+    def ensure_page_image_cached(self, page_num, silent=False):
+        cache_name = self._page_cache_name(page_num)
+        if self.image_cached(cache_name):
+            return True
+
+        urls = self._page_urls(page_num, "image")
+        if not urls:
+            return False
+
+        self.image_cache_any(urls, cache_name, silent=silent)
+        return True
+
+    def print_page_thumb(self, page_num):
+        self.image_print(self._thumb_cache_name(page_num))
+
+    def print_page_image(self, page_num):
+        self.image_print(self._page_cache_name(page_num))
 
     def contains_tag(self, tag):
         if len(self.tags) == 0:
@@ -134,57 +217,33 @@ class Hentai:
                 return True
         return False
 
-    def download_in_background(self):
+    def download_in_background(self, asset_kind="image"):
+        if asset_kind not in ("thumb", "image"):
+            asset_kind = "image"
+
         def download_all_pages():
+            downloaded = 0
             try:
-                # Fetch page URLs from API instead of scraping HTML
-                try:
-                    api_url = f"https://nhentai.net/api/v2/galleries/{self.id_}"
-                    api_response = receive(api_url, silent=True)
-                    api_data = json.loads(api_response)
-                    pages_data = api_data.get("pages", [])
-                except Exception:
-                    pages_data = []
-                
+                self._prefetch_metadata_if_needed()
+
+                what = "thumbnails" if asset_kind == "thumb" else "pages"
+                print(f"Starting background download of {what} for gallery {self.id_}")
+
                 for page_num in range(1, self.pages + 1):
                     if self.downloading_pages_in_background is False:
                         break
-
-                    # Try to get URL from API data first
-                    page_url = None
-                    if page_num - 1 < len(pages_data):
-                        page_path = pages_data[page_num - 1].get("path")
-                        if page_path:
-                            page_url = f"https://t.nhentai.net/{page_path}"
-                    
-                    # Fallback: construct URL manually (works for most cases)
-                    if not page_url:
-                        # Try common formats: .webp, .jpg, .png, .gif
-                        media_id = self.link.split("/g/")[1].split("/")[0]
-                        for ext in [".webp", ".jpg", ".png", ".gif"]:
-                            page_url = f"https://t.nhentai.net/galleries/{media_id}/{page_num}{ext}"
-                            try:
-                                # Test if URL is valid
-                                head_response = receive_raw(page_url, silent=True)
-                                if head_response:
-                                    break
-                            except Exception:
-                                page_url = None
-                        
-                        # Last resort: use the read page scraper (slower)
-                        if not page_url:
-                            url = URL_READ.format(id=self.id_, page=page_num)
-                            data = receive(url, silent=True)
-                            soup = bs4.BeautifulSoup(data, SOUP_PARSER)
-                            try:
-                                img_tag = soup.find(id="image-container")
-                                if img_tag:
-                                    page_url = img_tag.img.get("src") or img_tag.img.get("data-src")
-                            except Exception:
-                                pass
-                    
-                    if page_url:
-                        self.image_cache(page_url, str(page_num), silent=False)
+                    try:
+                        if asset_kind == "thumb":
+                            ok = self.ensure_page_thumb_cached(page_num, silent=True)
+                        else:
+                            ok = self.ensure_page_image_cached(page_num, silent=True)
+                        if ok:
+                            downloaded += 1
+                            if page_num == 1 or page_num == self.pages or page_num % 10 == 0:
+                                print_tmp(f"Background download ({what}): {page_num}/{self.pages}")
+                    except Exception as e:
+                        print(f"Failed to cache {what[:-1]} {page_num} for gallery {self.id_}: {e}")
+                print(f"Background download finished: {downloaded}/{self.pages} {what}")
             finally:
                 self.downloading_pages_in_background = False
 
@@ -192,32 +251,66 @@ class Hentai:
             print("Already downloading")
             return
         self.downloading_pages_in_background = True
-        threading.Thread(target=download_all_pages).start()
+        threading.Thread(target=download_all_pages, daemon=True).start()
 
     def stop_downloading_in_background(self):
         self.downloading_pages_in_background = False
 
     def reading_loop(self):
-        self.download_in_background()
+        self._prefetch_metadata_if_needed()
+        self.download_in_background(asset_kind="thumb")
 
         cmds = []
         cmds.append(cmd_quit := ["quit", "q", "exit", "e", "back", "b"])
         cmds.append(cmd_next := ["next page", "next", "n"])
         cmds.append(cmd_prev := ["prevoius page", "prev", "p"])
         cmds.append(cmd_page := ["go to page", "page", "go to", "goto", "go", "g"])
+        cmds.append(cmd_zoom := ["zoom", "z", "full", "f"])
+        cmds.append(cmd_thumb := ["thumbnail", "thumb", "t"])
 
         page_num = 1
+        view_mode = "thumb"
         while page_num <= self.pages and page_num >= 1:
-            if not self.image_cached(str(page_num)):
-                print_tmp("Downloading...")
-                try:
-                    while not self.image_cached(str(page_num)):
-                        time.sleep(WAIT_FOR_PAGE_DOWNLOAD_SLEEP)
-                except KeyboardInterrupt:
-                    break
+            cache_name = self._thumb_cache_name(page_num) if view_mode == "thumb" else self._page_cache_name(page_num)
 
-            print(f"Page: {page_num} / {self.pages}")
-            self.image_print(str(page_num))
+            if not self.image_cached(cache_name):
+                if view_mode == "thumb" and self.downloading_pages_in_background:
+                    print_tmp("Downloading thumbnail...")
+                    try:
+                        while not self.image_cached(cache_name):
+                            if not self.downloading_pages_in_background:
+                                break
+                            time.sleep(WAIT_FOR_PAGE_DOWNLOAD_SLEEP)
+                    except KeyboardInterrupt:
+                        break
+
+                if not self.image_cached(cache_name):
+                    print_tmp("Downloading full page..." if view_mode == "image" else "Downloading thumbnail...")
+                    try:
+                        if view_mode == "thumb":
+                            ok = self.ensure_page_thumb_cached(page_num, silent=False)
+                        else:
+                            ok = self.ensure_page_image_cached(page_num, silent=False)
+                    except KeyboardInterrupt:
+                        break
+                    except Exception as exc:
+                        alert(f"Could not download {'full page' if view_mode == 'image' else 'thumbnail'} {page_num}: {exc}")
+                        if view_mode == "image":
+                            view_mode = "thumb"
+                            continue
+                        return
+                    if not ok:
+                        alert(f"No {'image' if view_mode == 'image' else 'thumbnail'} URL available for page {page_num}.")
+                        if view_mode == "image":
+                            view_mode = "thumb"
+                            continue
+                        return
+
+            print(f"Page: {page_num} / {self.pages} [{view_mode}]")
+            if view_mode == "thumb":
+                self.print_page_thumb(page_num)
+            else:
+                self.print_page_image(page_num)
 
             c = input(">> ", "q")
             if c == "":
@@ -245,6 +338,10 @@ class Hentai:
                     alert(f"Invalid page: {page} (must be between 0 and {self.pages})")
                     continue
                 page_num = page
+            elif c in cmd_zoom:
+                view_mode = "image"
+            elif c in cmd_thumb:
+                view_mode = "thumb"
             else:
                 print(f"Unknown command: {c}")
                 print("List of available commands:")

@@ -16,7 +16,6 @@ URL_ARTIST = URL_INDEX + r"artist/{artist}/"
 URL_PAGE_POSTFIX = r"page={page}"
 
 API_BASE = r"https://nhentai.net/api/v2"
-CDN_BASE = r"https://t.nhentai.net"
 
 SOUP_PARSER = "lxml"
 

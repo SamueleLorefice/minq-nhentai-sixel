@@ -9,6 +9,11 @@ from .ui import print
 
 def main():
     parser = argparse.ArgumentParser(description="Command line port of nhentai")
+    parser.add_argument(
+        "gallery",
+        nargs="?",
+        help="Direct nhentai gallery code to open, e.g. 649474",
+    )
     parser.add_argument("--search", help="String to search for")
     parser.add_argument("--tags", nargs="+", help="Tags required for the hentai", default=[])
     parser.add_argument("--language", help="Language required for the hentai")
@@ -39,6 +44,17 @@ def main():
         print(exc)
         sys.exit(1)
 
-    call_args = [args.search, args.tags, args.language, args.artist]
+    gallery_id = None
+    if args.gallery is not None:
+        gallery_text = args.gallery.strip()
+        if gallery_text == "":
+            print("Gallery code cannot be empty")
+            sys.exit(1)
+        if not gallery_text.isdigit():
+            print(f"Gallery code must be numeric: {args.gallery}")
+            sys.exit(1)
+        gallery_id = int(gallery_text)
+
+    call_args = [args.search, args.tags, args.language, args.artist, gallery_id]
     interactive_hentai_enjoyment(*call_args)
 
