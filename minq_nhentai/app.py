@@ -1,8 +1,7 @@
 import sys
 
 from .constants import URL_ARTIST, URL_INDEX, URL_LANG, URL_PAGE_POSTFIX, URL_SEARCH, URL_TAG
-from .net import does_page_exist
-from .scrape import scrape_hentais
+from .scrape import scrape_hentais, tag_exists
 from .ui import alert, input, print, print_tmp
 
 
@@ -26,7 +25,7 @@ def interactive_hentai_enjoyment(
         url_page = URL_SEARCH.format(search=search_term)
 
     if required_artist is not None:
-        if not does_page_exist(URL_ARTIST.format(artist=required_artist)):
+        if not tag_exists("artist", required_artist):
             print(f"Artist doesn't exist: {required_artist}")
             sys.exit(1)
 
@@ -35,7 +34,7 @@ def interactive_hentai_enjoyment(
             required_artist = None
 
     for tag in required_tags:
-        if not does_page_exist(URL_TAG.format(tag=tag)):
+        if not tag_exists("tag", tag):
             print(f"Tag doesn't exist: {tag}")
             sys.exit(1)
 
@@ -45,7 +44,7 @@ def interactive_hentai_enjoyment(
             required_tags = required_tags[1:]
 
     if required_language is not None:
-        if not does_page_exist(URL_LANG.format(lang=required_language)):
+        if not tag_exists("language", required_language):
             print(f"Language doesn't exist: {required_language}")
             sys.exit(1)
 
@@ -94,7 +93,7 @@ def interactive_hentai_enjoyment(
 
             if required_language is not None:
                 if not hentai.contains_language(required_language):
-                    find_new_hentai = f"missing langiage: {required_language}"
+                    find_new_hentai = f"missing language: {required_language}"
 
             if find_new_hentai:
                 print_tmp(
@@ -135,4 +134,3 @@ def interactive_hentai_enjoyment(
 
         else:
             break
-
