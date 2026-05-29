@@ -1,8 +1,31 @@
 import sys
+import urllib.parse
 
-from .constants import URL_ARTIST, URL_INDEX, URL_LANG, URL_PAGE_POSTFIX, URL_SEARCH, URL_TAG
+from .constants import URL_INDEX, URL_PAGE_POSTFIX, URL_SEARCH
 from .scrape import scrape_hentais, tag_exists
 from .ui import alert, input, print, print_tmp
+
+
+def _quote_filter_value(value):
+    return value.replace('"', r'\"')
+
+
+def _build_search_query(search_term, required_tags, required_language, required_artist):
+    parts = []
+
+    if search_term is not None and search_term.strip() != "":
+        parts.append(search_term.strip())
+
+    for tag in required_tags:
+        parts.append(f'tag:"{_quote_filter_value(tag)}"')
+
+    if required_language is not None and required_language.strip() != "":
+        parts.append(f'language:"{_quote_filter_value(required_language)}"')
+
+    if required_artist is not None and required_artist.strip() != "":
+        parts.append(f'artist:"{_quote_filter_value(required_artist)}"')
+
+    return " ".join(parts)
 
 
 def interactive_hentai_enjoyment(
@@ -18,42 +41,38 @@ def interactive_hentai_enjoyment(
     assert type(required_tags) in (list, tuple)
     assert type(required_language) in (str, type(None))
 
-    url_page = None
-
-    if search_term is not None:
-        assert url_page is None
-        url_page = URL_SEARCH.format(search=search_term)
-
     if required_artist is not None:
         if not tag_exists("artist", required_artist):
             print(f"Artist doesn't exist: {required_artist}")
             sys.exit(1)
-
-        if url_page is None:
-            url_page = URL_ARTIST.format(artist=required_artist)
-            required_artist = None
 
     for tag in required_tags:
         if not tag_exists("tag", tag):
             print(f"Tag doesn't exist: {tag}")
             sys.exit(1)
 
-    if url_page is None:
-        if len(required_tags) != 0:
-            url_page = URL_TAG.format(tag=required_tags[0])
-            required_tags = required_tags[1:]
-
     if required_language is not None:
         if not tag_exists("language", required_language):
             print(f"Language doesn't exist: {required_language}")
             sys.exit(1)
 
-        if url_page is None:
-            url_page = URL_LANG.format(lang=required_language)
-            required_language = None
+    search_query = _build_search_query(
+        search_term,
+        required_tags,
+        required_language,
+        required_artist,
+    )
 
-    if url_page is None:
+    if search_query:
+        encoded_query = urllib.parse.quote_plus(search_query)
+        url_page = URL_SEARCH.format(search=encoded_query)
+        # Filters are handled by API search query now; no client-side skipping needed.
+        required_tags = []
+        required_language = None
+        required_artist = None
+    else:
         url_page = URL_INDEX
+
 
     if "?" in url_page:
         url_page += "&"
