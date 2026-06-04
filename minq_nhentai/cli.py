@@ -8,24 +8,61 @@ from .ui import print
 
 
 def main():
-    parser = argparse.ArgumentParser(description="Command line port of nhentai")
+    parser = argparse.ArgumentParser(
+        description="Browse nhentai galleries from your terminal.",
+        epilog=(
+            "Examples:\n"
+            "  python -m minq_nhentai 649474\n"
+            "  python -m minq_nhentai --search \"maid\"\n"
+            "  python -m minq_nhentai --tags vanilla wholesome --language english\n"
+            "  python -m minq_nhentai --artist \"murasaki nyan\" --image-backend sixel"
+        ),
+        formatter_class=argparse.RawTextHelpFormatter,
+    )
     parser.add_argument(
         "gallery",
         nargs="?",
-        help="Direct nhentai gallery code to open, e.g. 649474",
+        metavar="GALLERY_ID",
+        help="Open one gallery directly by numeric ID (for example: 649474)",
     )
-    parser.add_argument("--search", help="String to search for")
-    parser.add_argument("--tags", nargs="+", help="Tags required for the hentai", default=[])
-    parser.add_argument("--language", help="Language required for the hentai")
-    parser.add_argument("--artist", help="Artist required for the hentai")
+    parser.add_argument(
+        "--search",
+        metavar="QUERY",
+        help="Free-text search query (for example: \"school uniform\")",
+    )
+    parser.add_argument(
+        "--tags",
+        nargs="+",
+        metavar="TAG",
+        help="Require one or more tags (space-separated), for example: --tags vanilla romance",
+        default=[],
+    )
+    parser.add_argument(
+        "--language",
+        metavar="LANGUAGE",
+        help="Require a language tag (for example: english, japanese)",
+    )
+    parser.add_argument(
+        "--artist",
+        metavar="ARTIST",
+        help="Require an artist tag (for example: \"murasaki nyan\")",
+    )
     parser.add_argument(
         "--image-backend",
         choices=[IMAGE_BACKEND_AUTO, IMAGE_BACKEND_SIXEL, IMAGE_BACKEND_VIU],
         default=IMAGE_BACKEND_DEFAULT,
-        help="Image renderer backend to use",
+        help="Image renderer backend (choices: auto, sixel, viu)",
     )
-    parser.add_argument("--sixel", action="store_true", help="Force sixel image backend")
-    parser.add_argument("--viu", action="store_true", help="Force viu image backend")
+    parser.add_argument(
+        "--sixel",
+        action="store_true",
+        help="Shortcut for --image-backend sixel",
+    )
+    parser.add_argument(
+        "--viu",
+        action="store_true",
+        help="Shortcut for --image-backend viu",
+    )
     args = parser.parse_args()
 
     if args.sixel and args.viu:
