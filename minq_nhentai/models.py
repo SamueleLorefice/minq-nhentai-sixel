@@ -1,5 +1,6 @@
 import threading
 import time
+from typing import Any
 
 from .api import get_gallery_detail, iter_cdn_urls
 from .cache import HentaiCache
@@ -10,46 +11,57 @@ from .ui import alert, input, print, print_tmp
 class Hentai:
     def __init__(
         self,
-        id_,
-        title,
-        link,
-        thumb,
-        tags,
-        languages,
-        categories,
-        pages,
-        uploaded,
-        parodies,
-        characters,
-        artists,
-        groups,
-        page_assets=None,
-    ):
-        self.id_ = id_
-        self.title = title
-        self.link = link
-        self.thumb_url = thumb
-        self.tags = tags
-        self.languages = languages
-        self.categories = categories
-        self.pages = pages
-        self.uploaded = uploaded
-        self.parodies = parodies
-        self.characters = characters
-        self.artists = artists
-        self.groups = groups
-        self.page_assets = self._normalize_page_assets(page_assets)
-        self.cache = HentaiCache(self.id_)
+        id_: int,
+        title: str,
+        link: str,
+        thumb: str | None,
+        tags: list[Any],
+        languages: list[Any],
+        categories: list[Any],
+        pages: int,
+        uploaded: str | None,
+        parodies: list[Any],
+        characters: list[Any],
+        artists: list[Any],
+        groups: list[Any],
+        page_assets: list[dict[str, Any]] | None = None,
+    ) -> None:
+        self.id_: int = id_
+        self.title: str = title
+        self.link: str = link
+        self.thumb_url: str | None = thumb
+        self.tags: list[Any] = tags
+        self.languages: list[Any] = languages
+        self.categories: list[Any] = categories
+        self.pages: int = pages
+        self.uploaded: str | None = uploaded
+        self.parodies: list[Any] = parodies
+        self.characters: list[Any] = characters
+        self.artists: list[Any] = artists
+        self.groups: list[Any] = groups
+        self.page_assets: list[dict[str, Any]] = self._normalize_page_assets(page_assets)
+        self.cache: HentaiCache = HentaiCache(self.id_)
 
+        self.downloading_pages_in_background: bool = False
         self.stop_downloading_in_background()
 
-    def _normalize_page_assets(self, page_assets):
+    def _normalize_page_assets(self, page_assets: list[dict[str, Any]] | None) -> list[dict[str, Any]]:
         if not isinstance(page_assets, list):
-            return [None] * self.pages
+            blank: list[dict[str, Any]] = [
+                {
+                    "page_path": None,
+                    "thumb_path": None,
+                    "width": None,
+                    "height": None,
+                    "thumb_width": None,
+                    "thumb_height": None,
+                }
+            ] * self.pages
+            return blank
 
-        normalized = []
+        normalized: list[dict[str, Any]] = []
         for index in range(self.pages):
-            item = page_assets[index] if index < len(page_assets) else None
+            item: dict[str, Any] = page_assets[index] if index < len(page_assets) else {}
             if not isinstance(item, dict):
                 item = {}
             normalized.append(
@@ -60,41 +72,41 @@ class Hentai:
                     "height": item.get("height"),
                     "thumb_width": item.get("thumb_width"),
                     "thumb_height": item.get("thumb_height"),
-                }
+                },
             )
         return normalized
 
-    def _page_asset(self, page_num):
+    def _page_asset(self, page_num: int) -> dict[str, Any] | None:
         if page_num < 1 or page_num > len(self.page_assets):
             return None
         return self.page_assets[page_num - 1]
 
-    def _thumb_cache_name(self, page_num):
+    def _thumb_cache_name(self, page_num: int) -> str:
         return f"page_{page_num}_thumb"
 
-    def _page_cache_name(self, page_num):
+    def _page_cache_name(self, page_num: int) -> str:
         return str(page_num)
 
-    def _page_urls(self, page_num, kind):
-        asset = self._page_asset(page_num)
+    def _page_urls(self, page_num: int, kind: str) -> list[str]:
+        asset: dict[str, Any] | None = self._page_asset(page_num)
         if asset is None:
             return []
-        path = asset.get("thumb_path") if kind == "thumb" else asset.get("page_path")
+        path: Any = asset.get("thumb_path") if kind == "thumb" else asset.get("page_path")
         if not path:
             return []
         return list(iter_cdn_urls(path, kind))
 
-    def _prefetch_metadata_if_needed(self):
-        needs_metadata = len(self.page_assets) != self.pages or any(
+    def _prefetch_metadata_if_needed(self) -> None:
+        needs_metadata: bool = len(self.page_assets) != self.pages or any(
             not isinstance(asset, dict) or (asset.get("page_path") is None and asset.get("thumb_path") is None)
             for asset in self.page_assets
         )
         if not needs_metadata:
             return
 
-        detail = get_gallery_detail(self.id_, silent=True)
-        pages = detail.get("pages", []) if isinstance(detail, dict) else []
-        page_assets = []
+        detail: dict[str, Any] = get_gallery_detail(self.id_, silent=True)
+        pages: list[Any] = detail.get("pages", []) if isinstance(detail, dict) else []
+        page_assets: list[dict[str, Any]] = []
         for page in pages:
             if not isinstance(page, dict):
                 page_assets.append({})
@@ -107,43 +119,43 @@ class Hentai:
                     "height": page.get("height"),
                     "thumb_width": page.get("thumbnail_width"),
                     "thumb_height": page.get("thumbnail_height"),
-                }
+                },
             )
         self.page_assets = self._normalize_page_assets(page_assets)
 
-    def __eq__(self, other):
+    def __eq__(self, other: object) -> bool:
         if type(self) is not type(other):
             return False
         return self.id_ == other.id_
 
-    def image_path(self, img):
+    def image_path(self, img: str) -> str:
         return self.cache.image_path(img)
 
-    def image_cached(self, img):
+    def image_cached(self, img: str) -> bool:
         return self.cache.image_cached(img)
 
-    def image_set_cached(self, img):
+    def image_set_cached(self, img: str) -> None:
         self.cache.image_set_cached(img)
 
-    def image_unset_cached(self, img):
+    def image_unset_cached(self, img: str) -> None:
         self.cache.image_unset_cached(img)
 
-    def image_cache(self, url, img, silent=False):
+    def image_cache(self, url: str, img: str, silent: bool = False) -> None:
         self.cache.image_cache(url, img, silent=silent)
 
-    def image_cache_any(self, urls, img, silent=False):
+    def image_cache_any(self, urls: list[str], img: str, silent: bool = False) -> None:
         self.cache.image_cache_any(urls, img, silent=silent)
 
-    def image_print(self, img):
+    def image_print(self, img: str) -> None:
         self.cache.image_print(img)
 
-    def image_print_cache(self, url, img):
+    def image_print_cache(self, url: str, img: str) -> None:
         self.cache.image_print_cache(url, img)
 
-    def image_print_cache_any(self, urls, img, silent=False):
+    def image_print_cache_any(self, urls: list[str], img: str, silent: bool = False) -> None:
         self.cache.image_print_cache_any(urls, img, silent=silent)
 
-    def show(self):
+    def show(self) -> None:
         print(f"Title: {self.title}")
         print(f"Pages: {self.pages}")
         print(self.link)
@@ -151,11 +163,11 @@ class Hentai:
             print(t)
         for a in self.artists:
             print(a)
-        for l in self.languages:
-            print(l)
+        for lang in self.languages:
+            print(lang)
         self.print_thumb()
 
-    def print_thumb(self):
+    def print_thumb(self) -> None:
         if self.thumb_url is None:
             print("[Thumbnail unavailable]")
             return
@@ -163,70 +175,61 @@ class Hentai:
             self.image_cache_any(iter_cdn_urls(self.thumb_url, "thumb"), THUMB_NAME)
         self.image_print(THUMB_NAME)
 
-    def ensure_page_thumb_cached(self, page_num, silent=False):
-        cache_name = self._thumb_cache_name(page_num)
+    def ensure_page_thumb_cached(self, page_num: int, silent: bool = False) -> bool:
+        cache_name: str = self._thumb_cache_name(page_num)
         if self.image_cached(cache_name):
             return True
 
-        urls = self._page_urls(page_num, "thumb")
+        urls: list[str] = self._page_urls(page_num, "thumb")
         if not urls:
             return False
 
         self.image_cache_any(urls, cache_name, silent=silent)
         return True
 
-    def ensure_page_image_cached(self, page_num, silent=False):
-        cache_name = self._page_cache_name(page_num)
+    def ensure_page_image_cached(self, page_num: int, silent: bool = False) -> bool:
+        cache_name: str = self._page_cache_name(page_num)
         if self.image_cached(cache_name):
             return True
 
-        urls = self._page_urls(page_num, "image")
+        urls: list[str] = self._page_urls(page_num, "image")
         if not urls:
             return False
 
         self.image_cache_any(urls, cache_name, silent=silent)
         return True
 
-    def print_page_thumb(self, page_num):
+    def print_page_thumb(self, page_num: int) -> None:
         self.image_print(self._thumb_cache_name(page_num))
 
-    def print_page_image(self, page_num):
+    def print_page_image(self, page_num: int) -> None:
         self.image_print(self._page_cache_name(page_num))
 
-    def contains_tag(self, tag):
+    def contains_tag(self, tag: str) -> bool:
         if len(self.tags) == 0:
             return True
-        for t in self.tags:
-            if tag == t.name:
-                return True
-        return False
+        return any(tag == t.name for t in self.tags)
 
-    def contains_language(self, lang):
+    def contains_language(self, lang: str) -> bool:
         if len(self.languages) == 0:
             return True
-        for l in self.languages:
-            if lang == l.name:
-                return True
-        return False
+        return any(lang == language.name for language in self.languages)
 
-    def contains_artist(self, artist):
+    def contains_artist(self, artist: str) -> bool:
         if len(self.artists) == 0:
             return True
-        for a in self.artists:
-            if artist == a.name:
-                return True
-        return False
+        return any(artist == a.name for a in self.artists)
 
-    def download_in_background(self, asset_kind="image"):
+    def download_in_background(self, asset_kind: str = "image") -> None:
         if asset_kind not in ("thumb", "image"):
             asset_kind = "image"
 
-        def download_all_pages():
-            downloaded = 0
+        def download_all_pages() -> None:
+            downloaded: int = 0
             try:
                 self._prefetch_metadata_if_needed()
 
-                what = "thumbnails" if asset_kind == "thumb" else "pages"
+                what: str = "thumbnails" if asset_kind == "thumb" else "pages"
                 print(f"Starting background download of {what} for gallery {self.id_}")
 
                 for page_num in range(1, self.pages + 1):
@@ -234,7 +237,7 @@ class Hentai:
                         break
                     try:
                         if asset_kind == "thumb":
-                            ok = self.ensure_page_thumb_cached(page_num, silent=True)
+                            ok: bool = self.ensure_page_thumb_cached(page_num, silent=True)
                         else:
                             ok = self.ensure_page_image_cached(page_num, silent=True)
                         if ok:
@@ -253,14 +256,14 @@ class Hentai:
         self.downloading_pages_in_background = True
         threading.Thread(target=download_all_pages, daemon=True).start()
 
-    def stop_downloading_in_background(self):
+    def stop_downloading_in_background(self) -> None:
         self.downloading_pages_in_background = False
 
-    def reading_loop(self):
+    def reading_loop(self) -> None:
         self._prefetch_metadata_if_needed()
         self.download_in_background(asset_kind="thumb")
 
-        cmds = []
+        cmds: list[list[str]] = []
         cmds.append(cmd_quit := ["quit", "q", "exit", "e", "back", "b"])
         cmds.append(cmd_next := ["next page", "next", "n"])
         cmds.append(cmd_prev := ["prevoius page", "prev", "p"])
@@ -268,10 +271,12 @@ class Hentai:
         cmds.append(cmd_zoom := ["zoom", "z", "full", "f"])
         cmds.append(cmd_thumb := ["thumbnail", "thumb", "t"])
 
-        page_num = 1
-        view_mode = "thumb"
+        page_num: int = 1
+        view_mode: str = "thumb"
         while page_num <= self.pages and page_num >= 1:
-            cache_name = self._thumb_cache_name(page_num) if view_mode == "thumb" else self._page_cache_name(page_num)
+            cache_name: str = (
+                self._thumb_cache_name(page_num) if view_mode == "thumb" else self._page_cache_name(page_num)
+            )
 
             if not self.image_cached(cache_name):
                 if view_mode == "thumb" and self.downloading_pages_in_background:
@@ -288,19 +293,21 @@ class Hentai:
                     print_tmp("Downloading full page..." if view_mode == "image" else "Downloading thumbnail...")
                     try:
                         if view_mode == "thumb":
-                            ok = self.ensure_page_thumb_cached(page_num, silent=False)
+                            ok: bool = self.ensure_page_thumb_cached(page_num, silent=False)
                         else:
                             ok = self.ensure_page_image_cached(page_num, silent=False)
                     except KeyboardInterrupt:
                         break
                     except Exception as exc:
-                        alert(f"Could not download {'full page' if view_mode == 'image' else 'thumbnail'} {page_num}: {exc}")
+                        page_type: str = "full page" if view_mode == "image" else "thumbnail"
+                        alert(f"Could not download {page_type} {page_num}: {exc}")
                         if view_mode == "image":
                             view_mode = "thumb"
                             continue
                         return
                     if not ok:
-                        alert(f"No {'image' if view_mode == 'image' else 'thumbnail'} URL available for page {page_num}.")
+                        asset_type: str = "image" if view_mode == "image" else "thumbnail"
+                        alert(f"No {asset_type} URL available for page {page_num}.")
                         if view_mode == "image":
                             view_mode = "thumb"
                             continue
@@ -312,13 +319,13 @@ class Hentai:
             else:
                 self.print_page_image(page_num)
 
-            c = input(">> ", "q")
+            c: str | int | Any = input(">> ", "q")
             if c == "":
                 c = cmd_next[0]
 
             if c in cmd_quit:
                 break
-            elif c in cmd_next:
+            if c in cmd_next:
                 page_num += 1
             elif c in cmd_prev:
                 if page_num == 1:
@@ -326,7 +333,7 @@ class Hentai:
                 else:
                     page_num -= 1
             elif c in cmd_page:
-                page = input("Enter page number>> ", -1)
+                page: str | int | Any = input("Enter page number>> ", -1)
                 if page == -1:
                     continue
                 try:
@@ -353,37 +360,36 @@ class Hentai:
 
 
 class Tag:
-    prefix = "Tag"
+    prefix: str = "Tag"
 
-    def __init__(self, name, link, count):
-        self.name = name
-        self.link = link
-        self.count = count
+    def __init__(self, name: str, link: str, count: str) -> None:
+        self.name: str = name
+        self.link: str = link
+        self.count: str = count
 
-    def __repr__(self):
+    def __repr__(self) -> str:
         return f"-> {self.prefix}: {self.name} ({self.count}) {self.link}"
 
 
 class Language(Tag):
-    prefix = "Language"
+    prefix: str = "Language"
 
 
 class Category(Tag):
-    prefix = "Category"
+    prefix: str = "Category"
 
 
 class Parody(Tag):
-    prefix = "Parody"
+    prefix: str = "Parody"
 
 
 class Character(Tag):
-    prefix = "Character"
+    prefix: str = "Character"
 
 
 class Artist(Tag):
-    prefix = "Artist"
+    prefix: str = "Artist"
 
 
 class Group(Tag):
-    prefix = "Group"
-
+    prefix: str = "Group"

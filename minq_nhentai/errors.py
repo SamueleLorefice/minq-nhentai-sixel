@@ -1,7 +1,6 @@
-class Exception_net_page_not_found(Exception):
+class ExceptionNetPageNotFound(Exception):
     pass
 
 
-class Exception_net_unknown(Exception):
+class ExceptionNetUnknown(Exception):
     pass
-

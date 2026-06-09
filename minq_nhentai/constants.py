@@ -1,28 +1,29 @@
-import os
+from pathlib import Path
+from typing import Final
 
-CACHE_DIR = os.path.expanduser(r"~/.cache/minq_nhentai/")
-SETTINGS_DIR = os.path.expanduser(r"~/.config/minq_nhentai/")
-HENTAIS_DIR = CACHE_DIR + r"hentai_sources/"
+CACHE_DIR: Final[str] = str(Path.home() / ".cache" / "minq_nhentai") + "/"
+SETTINGS_DIR: Final[str] = str(Path.home() / ".config" / "minq_nhentai") + "/"
+HENTAIS_DIR: Final[str] = CACHE_DIR + "hentai_sources/"
 
-NET_TOO_MANY_REQUESTS_SLEEP = 3
-WAIT_FOR_PAGE_DOWNLOAD_SLEEP = 0.2
+NET_TOO_MANY_REQUESTS_SLEEP: Final[float] = 3
+WAIT_FOR_PAGE_DOWNLOAD_SLEEP: Final[float] = 0.2
 
-URL_INDEX = r"https://nhentai.net/"
-URL_SEARCH = URL_INDEX + r"search/?q={search}"
-URL_READ = URL_INDEX + r"g/{id}/{page}/"
-URL_TAG = URL_INDEX + r"tag/{tag}/"
-URL_LANG = URL_INDEX + r"language/{lang}/"
-URL_ARTIST = URL_INDEX + r"artist/{artist}/"
-URL_PAGE_POSTFIX = r"page={page}"
+URL_INDEX: Final[str] = r"https://nhentai.net/"
+URL_SEARCH: Final[str] = URL_INDEX + r"search/?q={search}"
+URL_READ: Final[str] = URL_INDEX + r"g/{id}/{page}/"
+URL_TAG: Final[str] = URL_INDEX + r"tag/{tag}/"
+URL_LANG: Final[str] = URL_INDEX + r"language/{lang}/"
+URL_ARTIST: Final[str] = URL_INDEX + r"artist/{artist}/"
+URL_PAGE_POSTFIX: Final[str] = r"page={page}"
 
-API_BASE = r"https://nhentai.net/api/v2"
+API_BASE: Final[str] = r"https://nhentai.net/api/v2"
 
-SOUP_PARSER = "lxml"
+SOUP_PARSER: Final[str] = "lxml"
 
-THUMB_NAME = "thumb"
-DONE_POSTFIX = ".done"
+THUMB_NAME: Final[str] = "thumb"
+DONE_POSTFIX: Final[str] = ".done"
 
-IMAGE_BACKEND_AUTO = "auto"
-IMAGE_BACKEND_SIXEL = "sixel"
-IMAGE_BACKEND_VIU = "viu"
-IMAGE_BACKEND_DEFAULT = IMAGE_BACKEND_AUTO
+IMAGE_BACKEND_AUTO: Final[str] = "auto"
+IMAGE_BACKEND_SIXEL: Final[str] = "sixel"
+IMAGE_BACKEND_VIU: Final[str] = "viu"
+IMAGE_BACKEND_DEFAULT: Final[str] = IMAGE_BACKEND_AUTO

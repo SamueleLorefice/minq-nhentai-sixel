@@ -1,0 +1,87 @@
+[build-system]
+requires = ["setuptools>=64.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "minq-nhentai"
+version = "0.2.0"
+description = "Terminal-based nhentai reader with sixel image support"
+readme = "README.md"
+license = { text = "GPL-2.0-only" }
+requires-python = ">=3.9"
+dependencies = [
+    "beautifulsoup4>=4.14.3",
+    "requests>=2.34.2",
+    "lxml>=6.1.1",
+    "Pillow>=11.0.0",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=8.0",
+    "pytest-responses>=0.5",
+    "ruff>=0.9",
+    "mypy>=1.15",
+    "pre-commit>=4.0",
+]
+
+[tool.setuptools.packages.find]
+include = ["minq_nhentai*"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["."]
+
+[tool.ruff]
+line-length = 120
+
+[tool.ruff.lint]
+select = [
+    "A",   # builtin shadowing
+    "B",   # bugbear
+    "C4",  # comprehensions
+    "E",   # pycodestyle errors
+    "F",   # pyflakes
+    "I",   # import sorting
+    "N",   # naming
+    "PTH", # pathlib
+    "Q",   # quotes
+    "S",   # security
+    "SIM", # simplify
+    "T10", # print statements
+    "W",   # pycodestyle warnings
+]
+ignore = [
+    "A001",   # allow shadowing builtins in ui.py (intentional wrapper)
+    "A004",   # allow shadowing builtins via import (input, print are intentional)
+    "N818",   # allow non-Error exception suffix
+    "S101",   # allow assert in non-test code
+    "S112",   # allow blank except in scrape iteration
+    "S603",   # allow subprocess with hardcoded args
+    "T201",   # allow print
+]
+fixable = ["ALL"]
+
+[tool.ruff.format]
+quote-style = "double"
+indent-style = "space"
+line-ending = "lf"
+
+[tool.ruff.lint.per-file-ignores]
+"tests/**" = [
+    "T201",   # allow print in tests
+]
+
+[tool.mypy]
+python_version = "3.10"
+strict = true
+ignore_missing_imports = true
+disallow_untyped_defs = true
+check_untyped_defs = true
+warn_unused_ignores = true
+warn_redundant_casts = true
+no_implicit_optional = true
+
+[[tool.mypy.overrides]]
+module = "tests.*"
+disallow_untyped_defs = false

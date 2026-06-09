@@ -1,42 +1,41 @@
 import builtins
 import io
 import threading
+from typing import Any
 
-_input = builtins.input
+_input: Any = builtins.input
 
 
-def input(msg, if_interrupted):
+def input(msg: str, if_interrupted: Any) -> Any:
     try:
         return _input(msg)
     except KeyboardInterrupt:
         return if_interrupted
 
 
-_print = builtins.print
-_print_tmp_last_msg = ""
-_print_tmp_last_count = 1
-_print_tmp_last_len = 0
-_print_tmp_lock = threading.Lock()
+_print: Any = builtins.print
+_print_tmp_last_msg: str = ""
+_print_tmp_last_count: int = 1
+_print_tmp_last_len: int = 0
+_print_tmp_lock: threading.Lock = threading.Lock()
 
 
-def _clear_tmp_line_if_any():
+def _clear_tmp_line_if_any() -> None:
     global _print_tmp_last_len
     if _print_tmp_last_len > 0:
         _print(" " * _print_tmp_last_len, end="\r")
 
 
-def print(*a, **kw):
+def print(*a: Any, **kw: Any) -> None:
     _print_tmp_lock.acquire()
     global _print_tmp_last_msg
     global _print_tmp_last_count
     global _print_tmp_last_len
     fake_stdout = io.StringIO()
-    file_bak = kw["file"] if "file" in kw else None
+    file_bak = kw.get("file")
     _print(*a, **kw, file=fake_stdout)
     if file_bak is not None:
         kw["file"] = file_bak
-    out = fake_stdout.getvalue()
-    first_line_len = len(out.split("\n")[0])
     _clear_tmp_line_if_any()
     _print_tmp_last_msg = ""
     _print_tmp_last_count = 1
@@ -45,14 +44,13 @@ def print(*a, **kw):
     _print_tmp_lock.release()
 
 
-def print_tmp(msg):
+def print_tmp(msg: str) -> None:
     _print_tmp_lock.acquire()
     global _print_tmp_last_msg
     global _print_tmp_last_count
     global _print_tmp_last_len
     assert "\n" not in msg
 
-    last_len = _print_tmp_last_len
     _clear_tmp_line_if_any()
     _print_tmp_last_len = len(msg)
 
@@ -71,7 +69,6 @@ def print_tmp(msg):
     _print_tmp_lock.release()
 
 
-def alert(msg=""):
+def alert(msg: str = "") -> None:
     print(msg)
     input("PRESS ENTER TO CONTINUE", -1)
-

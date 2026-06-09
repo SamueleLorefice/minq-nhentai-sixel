@@ -1,21 +1,27 @@
 import argparse
 import sys
+from typing import Any
 
 from .app import interactive_hentai_enjoyment
-from .constants import IMAGE_BACKEND_AUTO, IMAGE_BACKEND_DEFAULT, IMAGE_BACKEND_SIXEL, IMAGE_BACKEND_VIU
+from .constants import (
+    IMAGE_BACKEND_AUTO,
+    IMAGE_BACKEND_DEFAULT,
+    IMAGE_BACKEND_SIXEL,
+    IMAGE_BACKEND_VIU,
+)
 from .image_backend import configure_image_backend
 from .ui import print
 
 
-def main():
-    parser = argparse.ArgumentParser(
+def main() -> None:
+    parser: argparse.ArgumentParser = argparse.ArgumentParser(
         description="Browse nhentai galleries from your terminal.",
         epilog=(
             "Examples:\n"
             "  python -m minq_nhentai 649474\n"
-            "  python -m minq_nhentai --search \"maid\"\n"
+            '  python -m minq_nhentai --search "maid"\n'
             "  python -m minq_nhentai --tags vanilla wholesome --language english\n"
-            "  python -m minq_nhentai --artist \"murasaki nyan\" --image-backend sixel"
+            '  python -m minq_nhentai --artist "murasaki nyan" --image-backend sixel'
         ),
         formatter_class=argparse.RawTextHelpFormatter,
     )
@@ -28,7 +34,7 @@ def main():
     parser.add_argument(
         "--search",
         metavar="QUERY",
-        help="Free-text search query (for example: \"school uniform\")",
+        help='Free-text search query (for example: "school uniform")',
     )
     parser.add_argument(
         "--tags",
@@ -45,7 +51,7 @@ def main():
     parser.add_argument(
         "--artist",
         metavar="ARTIST",
-        help="Require an artist tag (for example: \"murasaki nyan\")",
+        help='Require an artist tag (for example: "murasaki nyan")',
     )
     parser.add_argument(
         "--image-backend",
@@ -63,13 +69,13 @@ def main():
         action="store_true",
         help="Shortcut for --image-backend viu",
     )
-    args = parser.parse_args()
+    args: argparse.Namespace = parser.parse_args()
 
     if args.sixel and args.viu:
         print("Cannot use both --sixel and --viu at the same time")
         sys.exit(1)
 
-    image_backend = args.image_backend
+    image_backend: str = args.image_backend
     if args.sixel:
         image_backend = IMAGE_BACKEND_SIXEL
     elif args.viu:
@@ -81,9 +87,9 @@ def main():
         print(exc)
         sys.exit(1)
 
-    gallery_id = None
+    gallery_id: int | None = None
     if args.gallery is not None:
-        gallery_text = args.gallery.strip()
+        gallery_text: str = args.gallery.strip()
         if gallery_text == "":
             print("Gallery code cannot be empty")
             sys.exit(1)
@@ -92,6 +98,5 @@ def main():
             sys.exit(1)
         gallery_id = int(gallery_text)
 
-    call_args = [args.search, args.tags, args.language, args.artist, gallery_id]
+    call_args: list[Any] = [args.search, args.tags, args.language, args.artist, gallery_id]
     interactive_hentai_enjoyment(*call_args)
-

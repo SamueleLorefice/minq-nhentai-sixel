@@ -1,4 +1,5 @@
-import os
+from pathlib import Path
+from typing import Any
 
 from .constants import DONE_POSTFIX, HENTAIS_DIR
 from .image_backend import render_image
@@ -6,38 +7,43 @@ from .net import receive_raw
 
 
 class HentaiCache:
-    def __init__(self, hentai_id):
-        self.hentai_id = hentai_id
+    def __init__(self, hentai_id: int) -> None:
+        self.hentai_id: int = hentai_id
 
-    def image_path(self, img):
-        path = os.path.join(HENTAIS_DIR, str(self.hentai_id), img)
-        dir_ = os.path.dirname(path)
-        os.makedirs(dir_, exist_ok=True)
-        return path
+    def _base_dir(self) -> Path:
+        return Path(HENTAIS_DIR) / str(self.hentai_id)
 
-    def image_cached(self, img):
-        done = self.image_path(img) + DONE_POSTFIX
-        return os.path.isfile(done)
+    def image_path(self, img: Any) -> str:
+        path: Path = self._base_dir() / str(img)
+        path.parent.mkdir(parents=True, exist_ok=True)
+        return str(path)
 
-    def image_set_cached(self, img):
-        done = self.image_path(img) + DONE_POSTFIX
-        with open(done, "w"):
-            pass
+    def _cache_path(self, img: Any) -> Path:
+        return self._base_dir() / str(img)
 
-    def image_unset_cached(self, img):
-        done = self.image_path(img) + DONE_POSTFIX
-        if os.path.isfile(done):
-            os.remove(done)
+    def _done_path(self, img: Any) -> Path:
+        return Path(self.image_path(img) + DONE_POSTFIX)
 
-    def image_cache(self, url, img, silent=False):
+    def image_cached(self, img: Any) -> bool:
+        return self._done_path(img).is_file()
+
+    def image_set_cached(self, img: Any) -> None:
+        self._done_path(img).parent.mkdir(parents=True, exist_ok=True)
+        self._done_path(img).write_text("")
+
+    def image_unset_cached(self, img: Any) -> None:
+        self._done_path(img).unlink(missing_ok=True)
+
+    def image_cache(self, url: str, img: Any, silent: bool = False) -> None:
         self.image_unset_cached(img)
-        data = receive_raw(url, silent=silent)
-        with open(self.image_path(img), "wb") as f:
-            f.write(data)
+        data: bytes = receive_raw(url, silent=silent)
+        path: Path = self._cache_path(img)
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_bytes(data)
         self.image_set_cached(img)
 
-    def image_cache_any(self, urls, img, silent=False):
-        last_exc = None
+    def image_cache_any(self, urls: list[str], img: Any, silent: bool = False) -> None:
+        last_exc: BaseException | None = None
         for url in urls:
             try:
                 self.image_cache(url, img, silent=silent)
@@ -48,18 +54,16 @@ class HentaiCache:
             raise last_exc
         raise RuntimeError(f"No download URLs available for {img}")
 
-    def image_print(self, img):
+    def image_print(self, img: Any) -> None:
         assert self.image_cached(img)
         render_image(self.image_path(img))
 
-    def image_print_cache(self, url, img, silent=False):
+    def image_print_cache(self, url: str, img: Any, silent: bool = False) -> None:
         if not self.image_cached(img):
             self.image_cache(url, img, silent=silent)
         self.image_print(img)
 
-    def image_print_cache_any(self, urls, img, silent=False):
+    def image_print_cache_any(self, urls: list[str], img: Any, silent: bool = False) -> None:
         if not self.image_cached(img):
             self.image_cache_any(urls, img, silent=silent)
         self.image_print(img)
-
-
