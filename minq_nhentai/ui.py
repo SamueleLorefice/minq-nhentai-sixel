@@ -1,14 +1,17 @@
 import builtins
 import io
 import threading
-from typing import Any
+from typing import Any, TypeVar
 
 _input: Any = builtins.input
 
+T = TypeVar("T")
 
-def input(msg: str, if_interrupted: Any) -> Any:
+
+def input(msg: str, if_interrupted: T) -> str | T:
     try:
-        return _input(msg)
+        result: str = _input(msg)
+        return result
     except KeyboardInterrupt:
         return if_interrupted
 

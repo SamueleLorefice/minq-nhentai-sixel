@@ -1,3 +1,4 @@
+import threading
 from pathlib import Path
 from typing import Any
 
@@ -9,6 +10,7 @@ from .net import receive_raw
 class HentaiCache:
     def __init__(self, hentai_id: int) -> None:
         self.hentai_id: int = hentai_id
+        self._lock: threading.RLock = threading.RLock()
 
     def _base_dir(self) -> Path:
         return Path(HENTAIS_DIR) / str(self.hentai_id)
@@ -35,12 +37,13 @@ class HentaiCache:
         self._done_path(img).unlink(missing_ok=True)
 
     def image_cache(self, url: str, img: Any, silent: bool = False) -> None:
-        self.image_unset_cached(img)
-        data: bytes = receive_raw(url, silent=silent)
-        path: Path = self._cache_path(img)
-        path.parent.mkdir(parents=True, exist_ok=True)
-        path.write_bytes(data)
-        self.image_set_cached(img)
+        with self._lock:
+            self.image_unset_cached(img)
+            data: bytes = receive_raw(url, silent=silent)
+            path: Path = self._cache_path(img)
+            path.parent.mkdir(parents=True, exist_ok=True)
+            path.write_bytes(data)
+            self.image_set_cached(img)
 
     def image_cache_any(self, urls: list[str], img: Any, silent: bool = False) -> None:
         last_exc: BaseException | None = None

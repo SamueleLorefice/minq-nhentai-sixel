@@ -1,6 +1,5 @@
 import argparse
 import sys
-from typing import Any
 
 from .app import interactive_hentai_enjoyment
 from .constants import (
@@ -98,5 +97,10 @@ def main() -> None:
             sys.exit(1)
         gallery_id = int(gallery_text)
 
-    call_args: list[Any] = [args.search, args.tags, args.language, args.artist, gallery_id]
-    interactive_hentai_enjoyment(*call_args)
+    interactive_hentai_enjoyment(
+        search_term=args.search,
+        required_tags=args.tags,
+        required_language=args.language,
+        required_artist=args.artist,
+        gallery_id=gallery_id,
+    )

@@ -10,9 +10,7 @@ readme = "README.md"
 license = { text = "GPL-2.0-only" }
 requires-python = ">=3.9"
 dependencies = [
-    "beautifulsoup4>=4.14.3",
     "requests>=2.34.2",
-    "lxml>=6.1.1",
     "Pillow>=11.0.0",
 ]
 
@@ -55,7 +53,6 @@ ignore = [
     "A001",   # allow shadowing builtins in ui.py (intentional wrapper)
     "A004",   # allow shadowing builtins via import (input, print are intentional)
     "N818",   # allow non-Error exception suffix
-    "S101",   # allow assert in non-test code
     "S112",   # allow blank except in scrape iteration
     "S603",   # allow subprocess with hardcoded args
     "T201",   # allow print

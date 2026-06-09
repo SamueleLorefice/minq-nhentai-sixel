@@ -18,8 +18,6 @@ URL_PAGE_POSTFIX: Final[str] = r"page={page}"
 
 API_BASE: Final[str] = r"https://nhentai.net/api/v2"
 
-SOUP_PARSER: Final[str] = "lxml"
-
 THUMB_NAME: Final[str] = "thumb"
 DONE_POSTFIX: Final[str] = ".done"
 

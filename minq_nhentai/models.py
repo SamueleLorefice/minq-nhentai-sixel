@@ -8,6 +8,42 @@ from .constants import THUMB_NAME, WAIT_FOR_PAGE_DOWNLOAD_SLEEP
 from .ui import alert, input, print, print_tmp
 
 
+class Tag:
+    prefix: str = "Tag"
+
+    def __init__(self, name: str, link: str, count: str) -> None:
+        self.name: str = name
+        self.link: str = link
+        self.count: str = count
+
+    def __repr__(self) -> str:
+        return f"-> {self.prefix}: {self.name} ({self.count}) {self.link}"
+
+
+class Language(Tag):
+    prefix: str = "Language"
+
+
+class Category(Tag):
+    prefix: str = "Category"
+
+
+class Parody(Tag):
+    prefix: str = "Parody"
+
+
+class Character(Tag):
+    prefix: str = "Character"
+
+
+class Artist(Tag):
+    prefix: str = "Artist"
+
+
+class Group(Tag):
+    prefix: str = "Group"
+
+
 class Hentai:
     def __init__(
         self,
@@ -15,30 +51,30 @@ class Hentai:
         title: str,
         link: str,
         thumb: str | None,
-        tags: list[Any],
-        languages: list[Any],
-        categories: list[Any],
+        tags: list[Tag],
+        languages: list[Language],
+        categories: list[Category],
         pages: int,
         uploaded: str | None,
-        parodies: list[Any],
-        characters: list[Any],
-        artists: list[Any],
-        groups: list[Any],
+        parodies: list[Parody],
+        characters: list[Character],
+        artists: list[Artist],
+        groups: list[Group],
         page_assets: list[dict[str, Any]] | None = None,
     ) -> None:
         self.id_: int = id_
         self.title: str = title
         self.link: str = link
         self.thumb_url: str | None = thumb
-        self.tags: list[Any] = tags
-        self.languages: list[Any] = languages
-        self.categories: list[Any] = categories
+        self.tags: list[Tag] = tags
+        self.languages: list[Language] = languages
+        self.categories: list[Category] = categories
         self.pages: int = pages
         self.uploaded: str | None = uploaded
-        self.parodies: list[Any] = parodies
-        self.characters: list[Any] = characters
-        self.artists: list[Any] = artists
-        self.groups: list[Any] = groups
+        self.parodies: list[Parody] = parodies
+        self.characters: list[Character] = characters
+        self.artists: list[Artist] = artists
+        self.groups: list[Group] = groups
         self.page_assets: list[dict[str, Any]] = self._normalize_page_assets(page_assets)
         self.cache: HentaiCache = HentaiCache(self.id_)
 
@@ -207,18 +243,12 @@ class Hentai:
         self.image_print(self._page_cache_name(page_num))
 
     def contains_tag(self, tag: str) -> bool:
-        if len(self.tags) == 0:
-            return True
         return any(tag == t.name for t in self.tags)
 
     def contains_language(self, lang: str) -> bool:
-        if len(self.languages) == 0:
-            return True
         return any(lang == language.name for language in self.languages)
 
     def contains_artist(self, artist: str) -> bool:
-        if len(self.artists) == 0:
-            return True
         return any(artist == a.name for a in self.artists)
 
     def download_in_background(self, asset_kind: str = "image") -> None:
@@ -321,7 +351,7 @@ class Hentai:
             else:
                 self.print_page_image(page_num)
 
-            c: str | int | Any = input(">> ", "q")
+            c: str = input(">> ", "q")
             if c == "":
                 c = cmd_next[0]
 
@@ -335,18 +365,17 @@ class Hentai:
                 else:
                     page_num -= 1
             elif c in cmd_page:
-                page: str | int | Any = input("Enter page number>> ", -1)
-                if page == -1:
+                page_input: str | int = input("Enter page number>> ", -1)
+                if page_input == -1:
                     continue
                 try:
-                    page = int(page)
+                    page_num = int(page_input)
                 except ValueError:
-                    alert(f"Not a valid number: {page}")
+                    alert(f"Not a valid number: {page_input}")
                     continue
-                if page < 1 or page > self.pages:
-                    alert(f"Invalid page: {page} (must be between 0 and {self.pages})")
+                if page_num < 1 or page_num > self.pages:
+                    alert(f"Invalid page: {page_num} (must be between 0 and {self.pages})")
                     continue
-                page_num = page
             elif c in cmd_zoom:
                 view_mode = "image"
             elif c in cmd_thumb:
@@ -359,39 +388,3 @@ class Hentai:
                 alert()
 
         self.stop_downloading_in_background()
-
-
-class Tag:
-    prefix: str = "Tag"
-
-    def __init__(self, name: str, link: str, count: str) -> None:
-        self.name: str = name
-        self.link: str = link
-        self.count: str = count
-
-    def __repr__(self) -> str:
-        return f"-> {self.prefix}: {self.name} ({self.count}) {self.link}"
-
-
-class Language(Tag):
-    prefix: str = "Language"
-
-
-class Category(Tag):
-    prefix: str = "Category"
-
-
-class Parody(Tag):
-    prefix: str = "Parody"
-
-
-class Character(Tag):
-    prefix: str = "Character"
-
-
-class Artist(Tag):
-    prefix: str = "Artist"
-
-
-class Group(Tag):
-    prefix: str = "Group"
