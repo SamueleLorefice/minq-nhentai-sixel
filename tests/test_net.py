@@ -24,32 +24,26 @@ def test_receive_returns_decoded_string() -> None:
 @responses.activate
 def test_receive_raw_404_raises_page_not_found() -> None:
     responses.get("https://example.com/404", status=404)
-    try:
+    with pytest.raises(ExceptionNetPageNotFound):
         receive_raw("https://example.com/404", silent=True)
-        raise AssertionError("Expected ExceptionNetPageNotFound")
-    except ExceptionNetPageNotFound:
-        pass
 
 
 @responses.activate
 def test_receive_raw_500_raises_unknown() -> None:
     responses.get("https://example.com/500", status=500)
-    try:
+    with pytest.raises(ExceptionNetUnknown):
         receive_raw("https://example.com/500", silent=True)
-        raise AssertionError("Expected ExceptionNetUnknown")
-    except ExceptionNetUnknown:
-        pass
 
 
 @responses.activate
 def test_does_page_exist_returns_true_for_200() -> None:
-    responses.get("https://example.com/exists", status=200)
+    responses.head("https://example.com/exists", status=200)
     assert does_page_exist("https://example.com/exists") is True
 
 
 @responses.activate
 def test_does_page_exist_returns_false_for_404() -> None:
-    responses.get("https://example.com/missing", status=404)
+    responses.head("https://example.com/missing", status=404)
     assert does_page_exist("https://example.com/missing") is False
 
 

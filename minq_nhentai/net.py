@@ -77,8 +77,9 @@ def receive(url: str, silent: bool = False, max_retries: int = 5) -> str:
 
 
 def does_page_exist(url: str) -> bool:
+    session: requests.Session = _get_session()
     try:
-        receive(url)
-    except ExceptionNetPageNotFound:
+        response: requests.Response = session.head(url, timeout=30)
+        return response.ok
+    except requests.RequestException:
         return False
-    return True

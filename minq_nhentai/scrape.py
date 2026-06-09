@@ -7,6 +7,7 @@ from typing import Any, cast
 
 from .api import api_get
 from .constants import URL_INDEX
+from .errors import ExceptionNetPageNotFound, ExceptionNetUnknown
 from .models import Artist, Category, Character, Group, Hentai, Language, Parody, Tag
 
 
@@ -25,7 +26,7 @@ def tag_exists(tag_type: str, slug: str) -> bool:
     try:
         _resolve_tag(tag_type, slug)
         return True
-    except Exception:
+    except (ExceptionNetPageNotFound, ExceptionNetUnknown):
         return False
 
 
@@ -172,7 +173,7 @@ def scrape_hentais(url_page: str) -> Any:
 
         try:
             result: Any = api_get(api_path, params)
-        except Exception:
+        except (ExceptionNetPageNotFound, ExceptionNetUnknown):
             return
 
         items: list[Any]
@@ -198,7 +199,7 @@ def scrape_hentais(url_page: str) -> Any:
 
             try:
                 detail: dict[str, Any] = api_get(f"/galleries/{gallery_id}", silent=True)
-            except Exception:
+            except (ExceptionNetPageNotFound, ExceptionNetUnknown):
                 continue
 
             yield _build_hentai(detail)

@@ -50,7 +50,8 @@ def _ordered_servers(kind: str, path: str, refresh: bool = False) -> list[str]:
         return []
 
     normalized_path: str = path.lstrip("/")
-    start: int = sum(normalized_path.encode("utf-8")) % len(servers)
+    path_hash: int = hash(normalized_path)
+    start: int = path_hash % len(servers)
     return servers[start:] + servers[:start]
 
 
@@ -63,6 +64,8 @@ def iter_cdn_urls(path: str, kind: str, refresh: bool = False) -> list[str]:
 
 
 def build_cdn_url(path: str, kind: str, refresh: bool = False) -> str | None:
-    for url in iter_cdn_urls(path, kind, refresh=refresh):
-        return url
-    return None
+    normalized_path: str = path.lstrip("/")
+    servers: list[str] = _ordered_servers(kind, normalized_path, refresh=refresh)
+    if not servers:
+        return None
+    return f"{servers[0]}/{normalized_path}"

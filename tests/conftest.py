@@ -1,5 +1,6 @@
 """Shared fixtures for minq_nhentai tests."""
 
+from pathlib import Path
 from typing import Any
 
 import pytest
@@ -52,6 +53,17 @@ def mock_gallery_detail(mock_responses: Any, sample_gallery_detail: dict[str, An
         status=200,
     )
     return url
+
+
+@pytest.fixture
+def tmp_hentais_dir(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> Path:
+    """Redirect HENTAIS_DIR to a temporary directory for hermetic cache tests."""
+    cache_dir: Path = tmp_path / "hentai_sources"
+    cache_dir.mkdir(parents=True)
+    value: str = str(cache_dir) + "/"
+    monkeypatch.setattr("minq_nhentai.constants.HENTAIS_DIR", value)
+    monkeypatch.setattr("minq_nhentai.cache.HENTAIS_DIR", value)
+    return cache_dir
 
 
 @pytest.fixture

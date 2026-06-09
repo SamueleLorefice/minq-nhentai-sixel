@@ -1,3 +1,4 @@
+import dataclasses
 import enum
 import os
 import shutil
@@ -17,9 +18,14 @@ class ImageBackend(enum.Enum):
     VIU = "viu"
 
 
-_image_backend_requested: str = IMAGE_BACKEND_DEFAULT
-_image_backend_resolved: str | None = None
-_image_backend_fallback_done: bool = False
+@dataclasses.dataclass
+class _BackendState:
+    requested: str = IMAGE_BACKEND_DEFAULT
+    resolved: str | None = None
+    fallback_done: bool = False
+
+
+_state: _BackendState = _BackendState()
 
 
 def _is_webp(path: str) -> bool:
@@ -109,14 +115,10 @@ def _resolve_image_backend(requested: str) -> str:
 
 
 def configure_image_backend(requested: str) -> None:
-    global _image_backend_requested
-    global _image_backend_resolved
-    global _image_backend_fallback_done
-
-    _image_backend_requested = requested
-    _image_backend_resolved = _resolve_image_backend(requested)
-    _image_backend_fallback_done = False
-    print(f"Using image backend: {_image_backend_resolved} (requested: {requested})")
+    _state.requested = requested
+    _state.resolved = _resolve_image_backend(requested)
+    _state.fallback_done = False
+    print(f"Using image backend: {_state.resolved} (requested: {requested})")
 
 
 def _render_with_backend(path: str, backend: str) -> None:
@@ -137,12 +139,9 @@ def _render_with_backend(path: str, backend: str) -> None:
 
 
 def render_image(path: str) -> None:
-    global _image_backend_resolved
-    global _image_backend_fallback_done
-
-    if _image_backend_resolved is None:
+    if _state.resolved is None:
         configure_image_backend(IMAGE_BACKEND_DEFAULT)
-    resolved: str | None = _image_backend_resolved
+    resolved: str | None = _state.resolved
     if resolved is None:
         raise RuntimeError("Image backend not configured")
 
@@ -150,14 +149,14 @@ def render_image(path: str) -> None:
         _render_with_backend(path, resolved)
     except subprocess.CalledProcessError as exc:
         if (
-            _image_backend_requested == IMAGE_BACKEND_AUTO
+            _state.requested == IMAGE_BACKEND_AUTO
             and resolved == IMAGE_BACKEND_SIXEL
-            and not _image_backend_fallback_done
+            and not _state.fallback_done
             and _has_bin("viu")
         ):
-            _image_backend_fallback_done = True
-            _image_backend_resolved = IMAGE_BACKEND_VIU
+            _state.fallback_done = True
+            _state.resolved = IMAGE_BACKEND_VIU
             print("Sixel render failed in auto mode, falling back to viu")
-            _render_with_backend(path, _image_backend_resolved)
+            _render_with_backend(path, _state.resolved)
             return
         raise RuntimeError(f"Image backend {resolved} failed with exit code {exc.returncode}") from exc

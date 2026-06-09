@@ -11,7 +11,7 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        python-version: ["3.9", "3.14"]
+        python-version: ["3.9", "3.13"]
 
     steps:
       - uses: actions/checkout@v4
@@ -19,9 +19,7 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: ${{ matrix.python-version }}
-
-      - name: Install Hatch
-        run: pipx install hatch
+          cache: pip
 
       - name: Install project
         run: pip install -e ".[dev]"
@@ -35,5 +33,5 @@ jobs:
       - name: Mypy
         run: mypy --strict minq_nhentai/
 
-      - name: Test with pytest
-        run: pytest
+      - name: Test with pytest (with coverage)
+        run: pytest --cov=minq_nhentai --cov-report=term
