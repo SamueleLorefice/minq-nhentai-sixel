@@ -1,11 +1,11 @@
-import os
+from pathlib import Path
 from typing import Final
 
 from .image_backend import ImageBackend
 
-CACHE_DIR: Final[str] = os.path.expanduser(r"~/.cache/minq_nhentai/")
-SETTINGS_DIR: Final[str] = os.path.expanduser(r"~/.config/minq_nhentai/")
-HENTAIS_DIR: Final[str] = CACHE_DIR + r"hentai_sources/"
+CACHE_DIR: Final[str] = str(Path.home() / ".cache" / "minq_nhentai") + "/"
+SETTINGS_DIR: Final[str] = str(Path.home() / ".config" / "minq_nhentai") + "/"
+HENTAIS_DIR: Final[str] = CACHE_DIR + "hentai_sources/"
 
 NET_TOO_MANY_REQUESTS_SLEEP: Final[float] = 3
 WAIT_FOR_PAGE_DOWNLOAD_SLEEP: Final[float] = 0.2

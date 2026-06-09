@@ -1,4 +1,4 @@
-import os
+from pathlib import Path
 from typing import Any
 
 from .constants import DONE_POSTFIX, HENTAIS_DIR
@@ -10,31 +10,36 @@ class HentaiCache:
     def __init__(self, hentai_id: int) -> None:
         self.hentai_id: int = hentai_id
 
+    def _base_dir(self) -> Path:
+        return Path(HENTAIS_DIR) / str(self.hentai_id)
+
     def image_path(self, img: Any) -> str:
-        path: str = os.path.join(HENTAIS_DIR, str(self.hentai_id), img)
-        dir_: str = os.path.dirname(path)
-        os.makedirs(dir_, exist_ok=True)
-        return path
+        path: Path = self._base_dir() / str(img)
+        path.parent.mkdir(parents=True, exist_ok=True)
+        return str(path)
+
+    def _cache_path(self, img: Any) -> Path:
+        return self._base_dir() / str(img)
+
+    def _done_path(self, img: Any) -> Path:
+        return Path(self.image_path(img) + DONE_POSTFIX)
 
     def image_cached(self, img: Any) -> bool:
-        done: str = self.image_path(img) + DONE_POSTFIX
-        return os.path.isfile(done)
+        return self._done_path(img).is_file()
 
     def image_set_cached(self, img: Any) -> None:
-        done: str = self.image_path(img) + DONE_POSTFIX
-        with open(done, "w"):
-            pass
+        self._done_path(img).parent.mkdir(parents=True, exist_ok=True)
+        self._done_path(img).write_text("")
 
     def image_unset_cached(self, img: Any) -> None:
-        done: str = self.image_path(img) + DONE_POSTFIX
-        if os.path.isfile(done):
-            os.remove(done)
+        self._done_path(img).unlink(missing_ok=True)
 
     def image_cache(self, url: str, img: Any, silent: bool = False) -> None:
         self.image_unset_cached(img)
         data: bytes = receive_raw(url, silent=silent)
-        with open(self.image_path(img), "wb") as f:
-            f.write(data)
+        path: Path = self._cache_path(img)
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_bytes(data)
         self.image_set_cached(img)
 
     def image_cache_any(self, urls: list[str], img: Any, silent: bool = False) -> None:

@@ -3,15 +3,11 @@ import os
 import shutil
 import subprocess
 import tempfile
+from pathlib import Path
 
 from PIL import Image
 
-from .constants import (
-    IMAGE_BACKEND_AUTO,
-    IMAGE_BACKEND_DEFAULT,
-    IMAGE_BACKEND_SIXEL,
-    IMAGE_BACKEND_VIU,
-)
+from .constants import IMAGE_BACKEND_AUTO, IMAGE_BACKEND_DEFAULT, IMAGE_BACKEND_SIXEL, IMAGE_BACKEND_VIU
 from .ui import print
 
 
@@ -28,8 +24,7 @@ _image_backend_fallback_done: bool = False
 
 def _is_webp(path: str) -> bool:
     try:
-        with open(path, "rb") as f:
-            header: bytes = f.read(12)
+        header: bytes = Path(path).read_bytes()[:12]
     except OSError:
         return False
 
@@ -53,8 +48,7 @@ def _render_with_webp_transcode_fallback(path: str, backend: str) -> None:
 
         subprocess.run(cmd, check=True, capture_output=False)
     finally:
-        if os.path.exists(tmp_path):
-            os.remove(tmp_path)
+        Path(tmp_path).unlink(missing_ok=True)
 
 
 def _env_truthy(name: str) -> bool:
@@ -164,6 +158,4 @@ def render_image(path: str) -> None:
             print("Sixel render failed in auto mode, falling back to viu")
             _render_with_backend(path, _image_backend_resolved)
             return
-        raise RuntimeError(
-            f"Image backend {_image_backend_resolved} failed with exit code {exc.returncode}",
-        ) from exc
+        raise RuntimeError(f"Image backend {_image_backend_resolved} failed with exit code {exc.returncode}") from exc

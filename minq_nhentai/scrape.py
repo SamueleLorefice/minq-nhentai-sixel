@@ -2,31 +2,22 @@
 
 import re
 import urllib.parse
-from typing import Any
+from functools import lru_cache
+from typing import Any, cast
 
 from .api import api_get
 from .constants import URL_INDEX
 from .models import Artist, Category, Character, Group, Hentai, Language, Parody, Tag
 
-_tag_cache: dict[tuple[str, str], dict[str, Any]] = {}
 
-
-def _yield_end_of_stream() -> Any:
-    while True:
-        yield
-
-
+@lru_cache(maxsize=128)
 def _resolve_tag(tag_type: str, slug: str) -> dict[str, Any]:
-    """Return API TagResponse dict for (tag_type, slug).
+    """
+    Return API TagResponse dict for (tag_type, slug).
     Raises ExceptionNetPageNotFound if the tag does not exist.
     tag_type is one of: tag, language, artist, group, parody, character, category
     """
-    key: tuple[str, str] = (tag_type, slug)
-    if key in _tag_cache:
-        return _tag_cache[key]
-    data: dict[str, Any] = api_get(f"/tags/{tag_type}/{slug}")
-    _tag_cache[key] = data
-    return data
+    return cast(dict[str, Any], api_get(f"/tags/{tag_type}/{slug}"))
 
 
 def tag_exists(tag_type: str, slug: str) -> bool:
@@ -94,7 +85,7 @@ def _build_hentai(detail: dict[str, Any]) -> Hentai:
                 "height": page.get("height"),
                 "thumb_width": page.get("thumbnail_width"),
                 "thumb_height": page.get("thumbnail_height"),
-            },
+            }
         )
 
     upload_date: Any = detail.get("upload_date")
@@ -125,7 +116,8 @@ def get_hentai_by_id(gallery_id: int, silent: bool = True) -> Hentai:
 
 
 def _parse_url_page(url_page: str) -> tuple[str, dict[str, Any]]:
-    """Parse a legacy HTML URL template (e.g. 'https://nhentai.net/tag/femdom/?page={page}')
+    """
+    Parse a legacy HTML URL template (e.g. 'https://nhentai.net/tag/femdom/?page={page}')
     and return (api_path, base_params) suitable for the v2 API.
 
     Returns a tuple (str, dict).  page number is NOT included; callers add it.
@@ -161,7 +153,8 @@ def _parse_url_page(url_page: str) -> tuple[str, dict[str, Any]]:
 
 
 def scrape_hentais(url_page: str) -> Any:
-    """Yield fully-populated Hentai objects by walking the nhentai API.
+    """
+    Yield fully-populated Hentai objects by walking the nhentai API.
 
     url_page  - legacy URL template string with {page} placeholder
                 (kept for backwards compatibility with app.py)
@@ -180,7 +173,6 @@ def scrape_hentais(url_page: str) -> Any:
         try:
             result: Any = api_get(api_path, params)
         except Exception:
-            yield from _yield_end_of_stream()
             return
 
         items: list[Any]
@@ -196,7 +188,6 @@ def scrape_hentais(url_page: str) -> Any:
             total_pages = None
 
         if not items:
-            yield from _yield_end_of_stream()
             return
 
         for item in items:
@@ -213,5 +204,4 @@ def scrape_hentais(url_page: str) -> Any:
             yield _build_hentai(detail)
 
         if isinstance(total_pages, int) and page_num >= total_pages:
-            yield from _yield_end_of_stream()
             return
