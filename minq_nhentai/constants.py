@@ -1,8 +1,6 @@
 from pathlib import Path
 from typing import Final
 
-from .image_backend import ImageBackend
-
 CACHE_DIR: Final[str] = str(Path.home() / ".cache" / "minq_nhentai") + "/"
 SETTINGS_DIR: Final[str] = str(Path.home() / ".config" / "minq_nhentai") + "/"
 HENTAIS_DIR: Final[str] = CACHE_DIR + "hentai_sources/"
@@ -25,7 +23,7 @@ SOUP_PARSER: Final[str] = "lxml"
 THUMB_NAME: Final[str] = "thumb"
 DONE_POSTFIX: Final[str] = ".done"
 
-IMAGE_BACKEND_AUTO: Final[str] = ImageBackend.AUTO.value
-IMAGE_BACKEND_SIXEL: Final[str] = ImageBackend.SIXEL.value
-IMAGE_BACKEND_VIU: Final[str] = ImageBackend.VIU.value
+IMAGE_BACKEND_AUTO: Final[str] = "auto"
+IMAGE_BACKEND_SIXEL: Final[str] = "sixel"
+IMAGE_BACKEND_VIU: Final[str] = "viu"
 IMAGE_BACKEND_DEFAULT: Final[str] = IMAGE_BACKEND_AUTO
