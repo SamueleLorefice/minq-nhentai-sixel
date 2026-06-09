@@ -49,7 +49,7 @@ def print_tmp(msg: str) -> None:
     global _print_tmp_last_msg
     global _print_tmp_last_count
     global _print_tmp_last_len
-    assert "\n" not in msg
+    msg = msg.replace("\n", " ")
 
     _clear_tmp_line_if_any()
     _print_tmp_last_len = len(msg)

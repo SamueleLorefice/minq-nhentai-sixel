@@ -142,14 +142,16 @@ def render_image(path: str) -> None:
 
     if _image_backend_resolved is None:
         configure_image_backend(IMAGE_BACKEND_DEFAULT)
-    assert _image_backend_resolved is not None
+    resolved: str | None = _image_backend_resolved
+    if resolved is None:
+        raise RuntimeError("Image backend not configured")
 
     try:
-        _render_with_backend(path, _image_backend_resolved)
+        _render_with_backend(path, resolved)
     except subprocess.CalledProcessError as exc:
         if (
             _image_backend_requested == IMAGE_BACKEND_AUTO
-            and _image_backend_resolved == IMAGE_BACKEND_SIXEL
+            and resolved == IMAGE_BACKEND_SIXEL
             and not _image_backend_fallback_done
             and _has_bin("viu")
         ):
@@ -158,4 +160,4 @@ def render_image(path: str) -> None:
             print("Sixel render failed in auto mode, falling back to viu")
             _render_with_backend(path, _image_backend_resolved)
             return
-        raise RuntimeError(f"Image backend {_image_backend_resolved} failed with exit code {exc.returncode}") from exc
+        raise RuntimeError(f"Image backend {resolved} failed with exit code {exc.returncode}") from exc

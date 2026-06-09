@@ -43,6 +43,7 @@ class Hentai:
         self.cache: HentaiCache = HentaiCache(self.id_)
 
         self.downloading_pages_in_background: bool = False
+        self._download_lock: threading.Lock = threading.Lock()
         self.stop_downloading_in_background()
 
     def _normalize_page_assets(self, page_assets: list[dict[str, Any]] | None) -> list[dict[str, Any]]:
@@ -250,10 +251,11 @@ class Hentai:
             finally:
                 self.downloading_pages_in_background = False
 
-        if self.downloading_pages_in_background:
-            print("Already downloading")
-            return
-        self.downloading_pages_in_background = True
+        with self._download_lock:
+            if self.downloading_pages_in_background:
+                print("Already downloading")
+                return
+            self.downloading_pages_in_background = True
         threading.Thread(target=download_all_pages, daemon=True).start()
 
     def stop_downloading_in_background(self) -> None:

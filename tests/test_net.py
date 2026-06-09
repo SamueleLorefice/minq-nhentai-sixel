@@ -1,5 +1,6 @@
 """Tests for net.py - HTTP retry and error handling."""
 
+import pytest
 import responses
 
 from minq_nhentai.errors import ExceptionNetPageNotFound, ExceptionNetUnknown
@@ -60,3 +61,12 @@ def test_receive_raw_retry_on_429_then_success() -> None:
     assert result == b"ok"
     # Verify both calls were made (first 429, then retry)
     assert len(responses.calls) == 2
+
+
+@responses.activate
+def test_receive_raw_exhausts_retries() -> None:
+    for _ in range(6):
+        responses.get("https://example.com/alway429", status=429)
+    with pytest.raises(ExceptionNetUnknown, match="Max retries"):
+        receive_raw("https://example.com/alway429", silent=True, max_retries=5)
+    assert len(responses.calls) == 5

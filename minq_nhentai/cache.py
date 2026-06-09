@@ -55,7 +55,8 @@ class HentaiCache:
         raise RuntimeError(f"No download URLs available for {img}")
 
     def image_print(self, img: Any) -> None:
-        assert self.image_cached(img)
+        if not self.image_cached(img):
+            raise RuntimeError(f"Image {img} is not cached")
         render_image(self.image_path(img))
 
     def image_print_cache(self, url: str, img: Any, silent: bool = False) -> None:

@@ -1,6 +1,9 @@
 """Tests for cache.py - HentaiCache path and cache state."""
 
 from pathlib import Path
+from unittest.mock import patch
+
+import pytest
 
 from minq_nhentai.cache import HentaiCache
 from minq_nhentai.constants import DONE_POSTFIX
@@ -43,3 +46,13 @@ class TestHentaiCache:
         cache_a: HentaiCache = HentaiCache(1)
         cache_b: HentaiCache = HentaiCache(2)
         assert cache_a.image_path("img") != cache_b.image_path("img")
+
+    def test_image_print_raises_on_uncached(self) -> None:
+        cache: HentaiCache = HentaiCache(77777)
+        cache.image_unset_cached("missing_img")
+        with (
+            pytest.raises(RuntimeError, match="not cached"),
+            patch("minq_nhentai.cache.render_image") as mock_render,
+        ):
+            cache.image_print("missing_img")
+        mock_render.assert_not_called()
