@@ -7,18 +7,17 @@ from .errors import ExceptionNetPageNotFound, ExceptionNetUnknown
 from .ui import print_tmp
 
 
-def receive_raw(url, silent=False):
-    headers = {
-        "User-Agent": "Mozilla/5.0 (X11; Linux x86_64; rv:95.0) Gecko/20100101 Firefox/95.0"
+def receive_raw(url: str, silent: bool = False) -> bytes:
+    headers: dict[str, str] = {
+        "User-Agent": "Mozilla/5.0 (X11; Linux x86_64; rv:95.0) Gecko/20100101 Firefox/95.0",
     }
     while True:
         try:
-            page = requests.get(url, headers=headers)
-        except requests.RequestException as exc:
+            page = requests.get(url, headers=headers, timeout=30)
+        except requests.RequestException:
             if not silent:
                 print_tmp(
-                    "Network error while fetching page, "
-                    f"retrying in {NET_TOO_MANY_REQUESTS_SLEEP} seconds"
+                    f"Network error while fetching page, retrying in {NET_TOO_MANY_REQUESTS_SLEEP} seconds",
                 )
             time.sleep(NET_TOO_MANY_REQUESTS_SLEEP)
             continue
@@ -41,8 +40,7 @@ def receive_raw(url, silent=False):
 
             if not silent:
                 print_tmp(
-                    "Too many requests, server refused connection, "
-                    f"retrying in {sleep_for} seconds"
+                    f"Too many requests, server refused connection, retrying in {sleep_for} seconds",
                 )
             time.sleep(sleep_for)
             continue
@@ -50,14 +48,13 @@ def receive_raw(url, silent=False):
         raise ExceptionNetUnknown(f"{url} {page.status_code} {page.reason}")
 
 
-def receive(url, silent=False):
+def receive(url: str, silent: bool = False) -> str:
     return receive_raw(url, silent=silent).decode()
 
 
-def does_page_exist(url):
+def does_page_exist(url: str) -> bool:
     try:
         receive(url)
     except ExceptionNetPageNotFound:
         return False
     return True
-

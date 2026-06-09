@@ -1,6 +1,6 @@
 [build-system]
-requires = ["setuptools>=75.0"]
-build-backend = "setuptools.backends._legacy:_Backend"
+requires = ["setuptools>=64.0"]
+build-backend = "setuptools.build_meta"
 
 [project]
 name = "minq-nhentai"
@@ -32,19 +32,35 @@ include = ["minq_nhentai*"]
 testpaths = ["tests"]
 pythonpath = ["."]
 
+[tool.ruff]
+line-length = 120
+
 [tool.ruff.lint]
-select = ["ALL"]
-ignore = [
-    "D203",    # conflicts with D211
-    "D213",    # conflicts with D212
-    "EM101",   # allow string literals in exceptions
-    "ERA001",  # allow commented-out code
-    "FBT001",  # allow bare boolean positional args
-    "FBT002",
-    "FBT003",
-    "PLR0913", # allow many args in Hentai.__init__ (for now)
-    "S101",    # allow assert in non-test code
+select = [
+    "A",   # builtin shadowing
+    "B",   # bugbear
+    "C4",  # comprehensions
+    "E",   # pycodestyle errors
+    "F",   # pyflakes
+    "I",   # import sorting
+    "N",   # naming
+    "PTH", # pathlib
+    "Q",   # quotes
+    "S",   # security
+    "SIM", # simplify
+    "T10", # print statements
+    "W",   # pycodestyle warnings
 ]
+ignore = [
+    "A001",   # allow shadowing builtins in ui.py (intentional wrapper)
+    "A004",   # allow shadowing builtins via import (input, print are intentional)
+    "N818",   # allow non-Error exception suffix
+    "S101",   # allow assert in non-test code
+    "S112",   # allow blank except in scrape iteration
+    "S603",   # allow subprocess with hardcoded args
+    "T201",   # allow print
+]
+fixable = ["ALL"]
 
 [tool.ruff.format]
 quote-style = "double"
@@ -53,15 +69,11 @@ line-ending = "lf"
 
 [tool.ruff.lint.per-file-ignores]
 "tests/**" = [
-    "T20",    # allow print in tests
-    "ANN",    # no annotation requirement in tests
-    "S101",   # assert is fine in tests
+    "T201",   # allow print in tests
 ]
-"minq_nhentai/__init__.py" = ["D104"]
-"minq_nhentai/__main__.py" = ["D104"]
 
 [tool.mypy]
-python_version = "3.9"
+python_version = "3.10"
 strict = true
 ignore_missing_imports = true
 disallow_untyped_defs = true

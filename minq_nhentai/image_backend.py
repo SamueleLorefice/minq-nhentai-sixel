@@ -6,7 +6,12 @@ import tempfile
 
 from PIL import Image
 
-from .constants import IMAGE_BACKEND_AUTO, IMAGE_BACKEND_DEFAULT, IMAGE_BACKEND_SIXEL, IMAGE_BACKEND_VIU
+from .constants import (
+    IMAGE_BACKEND_AUTO,
+    IMAGE_BACKEND_DEFAULT,
+    IMAGE_BACKEND_SIXEL,
+    IMAGE_BACKEND_VIU,
+)
 from .ui import print
 
 
@@ -16,31 +21,31 @@ class ImageBackend(enum.Enum):
     VIU = "viu"
 
 
-_image_backend_requested = IMAGE_BACKEND_DEFAULT
-_image_backend_resolved = None
-_image_backend_fallback_done = False
+_image_backend_requested: str = IMAGE_BACKEND_DEFAULT
+_image_backend_resolved: str | None = None
+_image_backend_fallback_done: bool = False
 
 
-def _is_webp(path):
+def _is_webp(path: str) -> bool:
     try:
         with open(path, "rb") as f:
-            header = f.read(12)
+            header: bytes = f.read(12)
     except OSError:
         return False
 
     return len(header) >= 12 and header[:4] == b"RIFF" and header[8:12] == b"WEBP"
 
 
-def _render_with_webp_transcode_fallback(path, backend):
+def _render_with_webp_transcode_fallback(path: str, backend: str) -> None:
     with tempfile.NamedTemporaryFile(suffix=".png", delete=False) as tmp:
-        tmp_path = tmp.name
+        tmp_path: str = tmp.name
 
     try:
         with Image.open(path) as img:
             img.save(tmp_path, format="PNG")
 
         if backend == IMAGE_BACKEND_SIXEL:
-            cmd = ["img2sixel", tmp_path]
+            cmd: list[str] = ["img2sixel", tmp_path]
         elif backend == IMAGE_BACKEND_VIU:
             cmd = ["viu", tmp_path]
         else:
@@ -52,21 +57,21 @@ def _render_with_webp_transcode_fallback(path, backend):
             os.remove(tmp_path)
 
 
-def _env_truthy(name):
-    value = os.getenv(name)
+def _env_truthy(name: str) -> bool:
+    value: str | None = os.getenv(name)
     if value is None:
         return False
     return value.strip().lower() in ("1", "true", "yes", "on")
 
 
-def terminal_supports_sixel():
+def terminal_supports_sixel() -> bool:
     if _env_truthy("MINQ_NHENTAI_NO_SIXEL"):
         return False
     if _env_truthy("MINQ_NHENTAI_SIXEL"):
         return True
 
-    term = (os.getenv("TERM") or "").lower()
-    term_program = (os.getenv("TERM_PROGRAM") or "").lower()
+    term: str = (os.getenv("TERM") or "").lower()
+    term_program: str = (os.getenv("TERM_PROGRAM") or "").lower()
 
     if "sixel" in term:
         return True
@@ -76,16 +81,14 @@ def terminal_supports_sixel():
         return True
     if term_program in ("wezterm", "mintty"):
         return True
-    if os.getenv("WT_SESSION"):
-        return True
-    return False
+    return bool(os.getenv("WT_SESSION"))
 
 
-def _has_bin(name):
+def _has_bin(name: str) -> bool:
     return shutil.which(name) is not None
 
 
-def _resolve_image_backend(requested):
+def _resolve_image_backend(requested: str) -> str:
     if requested == IMAGE_BACKEND_VIU:
         if not _has_bin("viu"):
             raise RuntimeError("Requested image backend viu, but executable was not found in PATH")
@@ -111,7 +114,7 @@ def _resolve_image_backend(requested):
     raise RuntimeError("No supported image backend found. Install viu or img2sixel (libsixel).")
 
 
-def configure_image_backend(requested):
+def configure_image_backend(requested: str) -> None:
     global _image_backend_requested
     global _image_backend_resolved
     global _image_backend_fallback_done
@@ -122,7 +125,7 @@ def configure_image_backend(requested):
     print(f"Using image backend: {_image_backend_resolved} (requested: {requested})")
 
 
-def _render_with_backend(path, backend):
+def _render_with_backend(path: str, backend: str) -> None:
     if backend == IMAGE_BACKEND_SIXEL:
         cmd = ["img2sixel", path]
     elif backend == IMAGE_BACKEND_VIU:
@@ -139,12 +142,13 @@ def _render_with_backend(path, backend):
         raise
 
 
-def render_image(path):
+def render_image(path: str) -> None:
     global _image_backend_resolved
     global _image_backend_fallback_done
 
     if _image_backend_resolved is None:
         configure_image_backend(IMAGE_BACKEND_DEFAULT)
+    assert _image_backend_resolved is not None
 
     try:
         _render_with_backend(path, _image_backend_resolved)
@@ -161,5 +165,5 @@ def render_image(path):
             _render_with_backend(path, _image_backend_resolved)
             return
         raise RuntimeError(
-            f"Image backend {_image_backend_resolved} failed with exit code {exc.returncode}"
+            f"Image backend {_image_backend_resolved} failed with exit code {exc.returncode}",
         ) from exc
