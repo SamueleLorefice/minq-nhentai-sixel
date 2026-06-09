@@ -1,3 +1,4 @@
+import enum
 import os
 import shutil
 import subprocess
@@ -5,13 +6,15 @@ import tempfile
 
 from PIL import Image
 
-from .constants import (
-    IMAGE_BACKEND_AUTO,
-    IMAGE_BACKEND_DEFAULT,
-    IMAGE_BACKEND_SIXEL,
-    IMAGE_BACKEND_VIU,
-)
+from .constants import IMAGE_BACKEND_AUTO, IMAGE_BACKEND_DEFAULT, IMAGE_BACKEND_SIXEL, IMAGE_BACKEND_VIU
 from .ui import print
+
+
+class ImageBackend(enum.Enum):
+    AUTO = "auto"
+    SIXEL = "sixel"
+    VIU = "viu"
+
 
 _image_backend_requested = IMAGE_BACKEND_DEFAULT
 _image_backend_resolved = None
@@ -130,7 +133,6 @@ def _render_with_backend(path, backend):
     try:
         subprocess.run(cmd, check=True, capture_output=False)
     except subprocess.CalledProcessError:
-        # Debian's libsixel/viu builds can miss WebP support; transcode for compatibility.
         if _is_webp(path):
             _render_with_webp_transcode_fallback(path, backend)
             return
@@ -161,4 +163,3 @@ def render_image(path):
         raise RuntimeError(
             f"Image backend {_image_backend_resolved} failed with exit code {exc.returncode}"
         ) from exc
-

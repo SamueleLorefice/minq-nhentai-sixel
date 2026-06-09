@@ -17,7 +17,7 @@ def _yield_end_of_stream():
 def _resolve_tag(tag_type, slug):
     """
     Return API TagResponse dict for (tag_type, slug).
-    Raises Exception_net_page_not_found if the tag does not exist.
+    Raises ExceptionNetPageNotFound if the tag does not exist.
     tag_type is one of: tag, language, artist, group, parody, character, category
     """
     key = (tag_type, slug)

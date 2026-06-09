@@ -1,0 +1,39 @@
+name: CI
+
+on:
+  push:
+    branches: [master, develop, feature/**]
+  pull_request:
+    branches: [master, develop]
+
+jobs:
+  quality:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python-version: ["3.9", "3.14"]
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+
+      - name: Install Hatch
+        run: pipx install hatch
+
+      - name: Install project
+        run: pip install -e ".[dev]"
+
+      - name: Ruff check
+        run: ruff check .
+
+      - name: Ruff format check
+        run: ruff format --check .
+
+      - name: Mypy
+        run: mypy --strict minq_nhentai/
+
+      - name: Test with pytest
+        run: pytest

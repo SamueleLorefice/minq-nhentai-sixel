@@ -3,7 +3,7 @@ import time
 import requests
 
 from .constants import NET_TOO_MANY_REQUESTS_SLEEP
-from .errors import Exception_net_page_not_found, Exception_net_unknown
+from .errors import ExceptionNetPageNotFound, ExceptionNetUnknown
 from .ui import print_tmp
 
 
@@ -27,7 +27,7 @@ def receive_raw(url, silent=False):
             return page.content
 
         if page.status_code == 404:
-            raise Exception_net_page_not_found()
+            raise ExceptionNetPageNotFound()
 
         if page.status_code == 429:
             retry_after = page.headers.get("Retry-After")
@@ -47,7 +47,7 @@ def receive_raw(url, silent=False):
             time.sleep(sleep_for)
             continue
 
-        raise Exception_net_unknown(f"{url} {page.status_code} {page.reason}")
+        raise ExceptionNetUnknown(f"{url} {page.status_code} {page.reason}")
 
 
 def receive(url, silent=False):
@@ -57,7 +57,7 @@ def receive(url, silent=False):
 def does_page_exist(url):
     try:
         receive(url)
-    except Exception_net_page_not_found:
+    except ExceptionNetPageNotFound:
         return False
     return True
 

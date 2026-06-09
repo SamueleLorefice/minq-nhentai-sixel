@@ -2,7 +2,7 @@ import json
 import urllib.parse
 
 from .constants import API_BASE
-from .errors import Exception_net_unknown
+from .errors import ExceptionNetUnknown
 from .net import receive
 
 _CDN_SERVERS = None
@@ -24,7 +24,7 @@ def get_cdn_servers(refresh=False, silent=True):
         thumb_servers = [server.rstrip("/") for server in data.get("thumb_servers", []) if isinstance(server, str)]
 
         if not image_servers or not thumb_servers:
-            raise Exception_net_unknown("Malformed CDN server response")
+            raise ExceptionNetUnknown("Malformed CDN server response")
 
         _CDN_SERVERS = {
             "image": image_servers,

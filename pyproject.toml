@@ -1,0 +1,75 @@
+[build-system]
+requires = ["setuptools>=75.0"]
+build-backend = "setuptools.backends._legacy:_Backend"
+
+[project]
+name = "minq-nhentai"
+version = "0.2.0"
+description = "Terminal-based nhentai reader with sixel image support"
+readme = "README.md"
+license = { text = "GPL-2.0-only" }
+requires-python = ">=3.9"
+dependencies = [
+    "beautifulsoup4>=4.14.3",
+    "requests>=2.34.2",
+    "lxml>=6.1.1",
+    "Pillow>=11.0.0",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=8.0",
+    "pytest-responses>=0.5",
+    "ruff>=0.9",
+    "mypy>=1.15",
+    "pre-commit>=4.0",
+]
+
+[tool.setuptools.packages.find]
+include = ["minq_nhentai*"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["."]
+
+[tool.ruff.lint]
+select = ["ALL"]
+ignore = [
+    "D203",    # conflicts with D211
+    "D213",    # conflicts with D212
+    "EM101",   # allow string literals in exceptions
+    "ERA001",  # allow commented-out code
+    "FBT001",  # allow bare boolean positional args
+    "FBT002",
+    "FBT003",
+    "PLR0913", # allow many args in Hentai.__init__ (for now)
+    "S101",    # allow assert in non-test code
+]
+
+[tool.ruff.format]
+quote-style = "double"
+indent-style = "space"
+line-ending = "lf"
+
+[tool.ruff.lint.per-file-ignores]
+"tests/**" = [
+    "T20",    # allow print in tests
+    "ANN",    # no annotation requirement in tests
+    "S101",   # assert is fine in tests
+]
+"minq_nhentai/__init__.py" = ["D104"]
+"minq_nhentai/__main__.py" = ["D104"]
+
+[tool.mypy]
+python_version = "3.9"
+strict = true
+ignore_missing_imports = true
+disallow_untyped_defs = true
+check_untyped_defs = true
+warn_unused_ignores = true
+warn_redundant_casts = true
+no_implicit_optional = true
+
+[[tool.mypy.overrides]]
+module = "tests.*"
+disallow_untyped_defs = false
