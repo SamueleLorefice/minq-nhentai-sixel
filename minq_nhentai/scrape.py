@@ -1,6 +1,7 @@
 """nhentai API v2 access helpers."""
 
 import re
+import time
 import urllib.parse
 from functools import lru_cache
 from typing import Any, cast
@@ -175,6 +176,8 @@ def scrape_hentais(url_page: str) -> Any:
             result: Any = api_get(api_path, params)
         except (ExceptionNetPageNotFound, ExceptionNetUnknown):
             return
+
+        time.sleep(0.3)
 
         items: list[Any]
         total_pages: int | None

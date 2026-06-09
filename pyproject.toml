@@ -54,8 +54,7 @@ ignore = [
     "A001",   # allow shadowing builtins in ui.py (intentional wrapper)
     "A004",   # allow shadowing builtins via import (input, print are intentional)
     "N818",   # allow non-Error exception suffix
-    "S112",   # allow blank except in scrape iteration
-    "S603",   # allow subprocess with hardcoded args
+    "S603",   # allow subprocess with hardcoded cmds (paths are application-controlled)
     "T201",   # allow print
 ]
 fixable = ["ALL"]

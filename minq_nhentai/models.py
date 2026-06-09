@@ -7,6 +7,20 @@ from .cache import HentaiCache
 from .constants import THUMB_NAME, WAIT_FOR_PAGE_DOWNLOAD_SLEEP
 from .ui import alert, input, print, print_tmp
 
+_CACHE_DELEGATED: frozenset[str] = frozenset(
+    {
+        "image_path",
+        "image_cached",
+        "image_set_cached",
+        "image_unset_cached",
+        "image_cache",
+        "image_cache_any",
+        "image_print",
+        "image_print_cache",
+        "image_print_cache_any",
+    }
+)
+
 
 class Tag:
     prefix: str = "Tag"
@@ -165,32 +179,11 @@ class Hentai:
             return False
         return self.id_ == other.id_
 
-    def image_path(self, img: str) -> str:
-        return self.cache.image_path(img)
-
-    def image_cached(self, img: str) -> bool:
-        return self.cache.image_cached(img)
-
-    def image_set_cached(self, img: str) -> None:
-        self.cache.image_set_cached(img)
-
-    def image_unset_cached(self, img: str) -> None:
-        self.cache.image_unset_cached(img)
-
-    def image_cache(self, url: str, img: str, silent: bool = False) -> None:
-        self.cache.image_cache(url, img, silent=silent)
-
-    def image_cache_any(self, urls: list[str], img: str, silent: bool = False) -> None:
-        self.cache.image_cache_any(urls, img, silent=silent)
-
-    def image_print(self, img: str) -> None:
-        self.cache.image_print(img)
-
-    def image_print_cache(self, url: str, img: str) -> None:
-        self.cache.image_print_cache(url, img)
-
-    def image_print_cache_any(self, urls: list[str], img: str, silent: bool = False) -> None:
-        self.cache.image_print_cache_any(urls, img, silent=silent)
+    def __getattr__(self, name: str) -> Any:
+        if name in _CACHE_DELEGATED:
+            return getattr(self.cache, name)
+        msg = f"{type(self).__name__!r} object has no attribute {name!r}"
+        raise AttributeError(msg)
 
     def show(self) -> None:
         print(f"Title: {self.title}")
@@ -298,7 +291,7 @@ class Hentai:
         cmds: list[list[str]] = []
         cmds.append(cmd_quit := ["quit", "q", "exit", "e", "back", "b"])
         cmds.append(cmd_next := ["next page", "next", "n"])
-        cmds.append(cmd_prev := ["prevoius page", "prev", "p"])
+        cmds.append(cmd_prev := ["previous page", "prev", "p"])
         cmds.append(cmd_page := ["go to page", "page", "go to", "goto", "go", "g"])
         cmds.append(cmd_zoom := ["zoom", "z", "full", "f"])
         cmds.append(cmd_thumb := ["thumbnail", "thumb", "t"])

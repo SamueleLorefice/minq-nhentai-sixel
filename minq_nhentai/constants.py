@@ -14,8 +14,6 @@ URL_READ: Final[str] = URL_INDEX + r"g/{id}/{page}/"
 URL_TAG: Final[str] = URL_INDEX + r"tag/{tag}/"
 URL_LANG: Final[str] = URL_INDEX + r"language/{lang}/"
 URL_ARTIST: Final[str] = URL_INDEX + r"artist/{artist}/"
-URL_PAGE_POSTFIX: Final[str] = r"page={page}"
-
 API_BASE: Final[str] = r"https://nhentai.net/api/v2"
 
 THUMB_NAME: Final[str] = "thumb"

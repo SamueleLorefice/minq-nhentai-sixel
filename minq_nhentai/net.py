@@ -15,7 +15,7 @@ def _get_session() -> requests.Session:
         _session = requests.Session()
         _session.headers.update(
             {
-                "User-Agent": "Mozilla/5.0 (X11; Linux x86_64; rv:95.0) Gecko/20100101 Firefox/95.0",
+                "User-Agent": "Mozilla/5.0 (X11; Linux x86_64; rv:133.0) Gecko/20100101 Firefox/133.0",
             }
         )
     return _session

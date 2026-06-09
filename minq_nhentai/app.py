@@ -1,7 +1,7 @@
 import sys
 import urllib.parse
 
-from .constants import URL_INDEX, URL_PAGE_POSTFIX, URL_SEARCH
+from .constants import URL_INDEX, URL_SEARCH
 from .models import Hentai
 from .scrape import get_hentai_by_id, scrape_hentais, tag_exists
 from .ui import alert, input, print, print_tmp
@@ -61,12 +61,12 @@ def _build_page_url(search_query: str) -> str:
     else:
         url_page = URL_INDEX
 
-    if "?" in url_page:
-        url_page += "&"
-    else:
-        url_page += "?"
-
-    return url_page + URL_PAGE_POSTFIX
+    parsed: urllib.parse.ParseResult = urllib.parse.urlparse(url_page)
+    query: str = parsed.query
+    if query:
+        query += "&"
+    query += "page={page}"
+    return urllib.parse.urlunparse(parsed._replace(query=query))
 
 
 def _validate_filters(

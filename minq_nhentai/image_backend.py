@@ -108,8 +108,6 @@ def _resolve_image_backend(requested: str) -> str:
         return IMAGE_BACKEND_SIXEL
     if _has_bin("viu"):
         return IMAGE_BACKEND_VIU
-    if _has_bin("img2sixel"):
-        return IMAGE_BACKEND_SIXEL
 
     raise RuntimeError("No supported image backend found. Install viu or img2sixel (libsixel).")
 
