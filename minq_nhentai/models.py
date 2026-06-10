@@ -2,10 +2,12 @@ import threading
 import time
 from typing import Any
 
+from rich.text import Text
+
 from .api import get_gallery_detail, iter_cdn_urls
 from .cache import HentaiCache
 from .constants import THUMB_NAME, WAIT_FOR_PAGE_DOWNLOAD_SLEEP
-from .ui import alert, input, print, print_tmp
+from .ui import alert, error, hint, info, input, print, print_tmp, success, warn
 
 _CACHE_DELEGATED: frozenset[str] = frozenset(
     {
@@ -24,6 +26,7 @@ _CACHE_DELEGATED: frozenset[str] = frozenset(
 
 class Tag:
     prefix: str = "Tag"
+    style: str = "yellow"
 
     def __init__(self, name: str, link: str, count: str) -> None:
         self.name: str = name
@@ -31,31 +34,42 @@ class Tag:
         self.count: str = count
 
     def __repr__(self) -> str:
-        return f"-> {self.prefix}: {self.name} ({self.count}) {self.link}"
+        return f"\u25b8 {self.prefix}: {self.name} ({self.count})"
+
+    def __rich__(self) -> Text:
+        return Text.from_markup(
+            f"[{self.style}]\u25b8 {self.prefix}:[/] [bold]{self.name}[/] ({self.count})"
+        )
 
 
 class Language(Tag):
     prefix: str = "Language"
+    style: str = "green"
 
 
 class Category(Tag):
     prefix: str = "Category"
+    style: str = "bold white"
 
 
 class Parody(Tag):
     prefix: str = "Parody"
+    style: str = "blue"
 
 
 class Character(Tag):
     prefix: str = "Character"
+    style: str = "cyan"
 
 
 class Artist(Tag):
     prefix: str = "Artist"
+    style: str = "magenta"
 
 
 class Group(Tag):
     prefix: str = "Group"
+    style: str = "dim"
 
 
 class Hentai:
@@ -186,9 +200,9 @@ class Hentai:
         raise AttributeError(msg)
 
     def show(self) -> None:
-        print(f"Title: {self.title}")
-        print(f"Pages: {self.pages}")
-        print(self.link)
+        print(f"[bold cyan]Title:[/] {self.title}")
+        print(f"[green]Pages:[/] {self.pages}")
+        print(f"[blue underline]{self.link}[/]")
         for t in self.tags:
             print(t)
         for a in self.artists:
@@ -199,7 +213,7 @@ class Hentai:
 
     def print_thumb(self) -> None:
         if self.thumb_url is None:
-            print("[Thumbnail unavailable]")
+            warn("Thumbnail unavailable")
             return
         if not self.image_cached(THUMB_NAME):
             self.image_cache_any(iter_cdn_urls(self.thumb_url, "thumb"), THUMB_NAME)
@@ -254,7 +268,7 @@ class Hentai:
                 self._prefetch_metadata_if_needed()
 
                 what: str = "thumbnails" if asset_kind == "thumb" else "pages"
-                print(f"Starting background download of {what} for gallery {self.id_}")
+                info(f"Starting background download of {what} for gallery {self.id_}")
 
                 for page_num in range(1, self.pages + 1):
                     if self.downloading_pages_in_background is False:
@@ -269,14 +283,14 @@ class Hentai:
                             if page_num == 1 or page_num == self.pages or page_num % 10 == 0:
                                 print_tmp(f"Background download ({what}): {page_num}/{self.pages}")
                     except Exception as e:
-                        print(f"Failed to cache {what[:-1]} {page_num} for gallery {self.id_}: {e}")
-                print(f"Background download finished: {downloaded}/{self.pages} {what}")
+                        error(f"Failed to cache {what[:-1]} {page_num} for gallery {self.id_}: {e}")
+                success(f"Background download finished: {downloaded}/{self.pages} {what}")
             finally:
                 self.downloading_pages_in_background = False
 
         with self._download_lock:
             if self.downloading_pages_in_background:
-                print("Already downloading")
+                warn("Already downloading")
                 return
             self.downloading_pages_in_background = True
         threading.Thread(target=download_all_pages, daemon=True).start()
@@ -325,26 +339,28 @@ class Hentai:
                         break
                     except Exception as exc:
                         page_type: str = "full page" if view_mode == "image" else "thumbnail"
-                        alert(f"Could not download {page_type} {page_num}: {exc}")
+                        error(f"Could not download {page_type} {page_num}: {exc}")
+                        alert()
                         if view_mode == "image":
                             view_mode = "thumb"
                             continue
                         return
                     if not ok:
                         asset_type: str = "image" if view_mode == "image" else "thumbnail"
-                        alert(f"No {asset_type} URL available for page {page_num}.")
+                        error(f"No {asset_type} URL available for page {page_num}.")
+                        alert()
                         if view_mode == "image":
                             view_mode = "thumb"
                             continue
                         return
 
-            print(f"Page: {page_num} / {self.pages} [{view_mode}]")
+            print(f"[bold]Page: {page_num} / {self.pages} [{view_mode}][/]")
             if view_mode == "thumb":
                 self.print_page_thumb(page_num)
             else:
                 self.print_page_image(page_num)
 
-            c: str = input(">> ", "q")
+            c: str = input("[bold cyan]>>[/] ", "q")
             if c == "":
                 c = cmd_next[0]
 
@@ -354,30 +370,33 @@ class Hentai:
                 page_num += 1
             elif c in cmd_prev:
                 if page_num == 1:
-                    alert("This is the first page")
+                    warn("This is the first page")
+                    alert()
                 else:
                     page_num -= 1
             elif c in cmd_page:
-                page_input: str | int = input("Enter page number>> ", -1)
+                page_input: str | int = input("[bold cyan]Enter page number>>[/] ", -1)
                 if page_input == -1:
                     continue
                 try:
                     page_num = int(page_input)
                 except ValueError:
-                    alert(f"Not a valid number: {page_input}")
+                    error(f"Not a valid number: {page_input}")
+                    alert()
                     continue
                 if page_num < 1 or page_num > self.pages:
-                    alert(f"Invalid page: {page_num} (must be between 0 and {self.pages})")
+                    error(f"Invalid page: {page_num} (must be between 0 and {self.pages})")
+                    alert()
                     continue
             elif c in cmd_zoom:
                 view_mode = "image"
             elif c in cmd_thumb:
                 view_mode = "thumb"
             else:
-                print(f"Unknown command: {c}")
-                print("List of available commands:")
+                warn(f"Unknown command: {c}")
+                hint("List of available commands:")
                 for item in cmds:
-                    print(f"->{item}")
+                    hint(f"->{item}")
                 alert()
 
         self.stop_downloading_in_background()

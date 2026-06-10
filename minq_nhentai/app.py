@@ -4,7 +4,7 @@ import urllib.parse
 from .constants import URL_INDEX, URL_SEARCH
 from .models import Hentai
 from .scrape import get_hentai_by_id, scrape_hentais, tag_exists
-from .ui import alert, input, print, print_tmp
+from .ui import alert, error, hint, info, input, print_tmp, warn
 
 
 def _quote_filter_value(value: str) -> str:
@@ -75,23 +75,23 @@ def _validate_filters(
     required_artist: str | None,
 ) -> bool:
     if required_artist is not None and not tag_exists("artist", required_artist):
-        print(f"Artist doesn't exist: {required_artist}")
+        error(f"Artist doesn't exist: {required_artist}")
         return False
     for tag in required_tags:
         if not tag_exists("tag", tag):
-            print(f"Tag doesn't exist: {tag}")
+            error(f"Tag doesn't exist: {tag}")
             return False
     if required_language is not None and not tag_exists("language", required_language):
-        print(f"Language doesn't exist: {required_language}")
+        error(f"Language doesn't exist: {required_language}")
         return False
     return True
 
 
 def _print_unknown_command(cmds: list[list[str]]) -> None:
-    print("Unknown command")
-    print("List of available commands:")
+    warn("Unknown command")
+    hint("List of available commands:")
     for cmd in cmds:
-        print(f"-> {cmd}")
+        hint(f"-> {cmd}")
     alert()
 
 
@@ -135,14 +135,14 @@ def interactive_hentai_enjoyment(
         try:
             hentai: Hentai = get_hentai_by_id(gallery_id, silent=True)
         except Exception as exc:
-            print(f"Could not load gallery {gallery_id}: {exc}")
+            error(f"Could not load gallery {gallery_id}: {exc}")
             sys.exit(1)
 
         running: bool = True
         while running:
             hentai.show()
 
-            c: str = input("> ", cmd_quit[0])
+            c: str = input("[bold cyan]>[/] ", cmd_quit[0])
             if c == "":
                 c = cmd_read[0]
 
@@ -151,7 +151,7 @@ def interactive_hentai_enjoyment(
                 running = False
             elif not action:
                 if c in cmd_next or c in cmd_prev:
-                    alert("Direct gallery mode only has one gallery loaded")
+                    warn("Direct gallery mode only has one gallery loaded")
                 else:
                     _print_unknown_command(cmds)
         return
@@ -180,9 +180,9 @@ def interactive_hentai_enjoyment(
     for hentai in scrape_hentais(url_page):
         if hentai is None:
             if len(hentais) == 0:
-                alert("No hentais with the specified parameters")
+                warn("No hentais with the specified parameters")
                 break
-            alert("This was the last hentai")
+            info("This was the last hentai")
             ind = len(hentais) - 1
         else:
             if _is_duplicate(hentai, hentais):
@@ -203,7 +203,7 @@ def interactive_hentai_enjoyment(
 
             hentai.show()
 
-            c = input("> ", cmd_quit[0])
+            c = input("[bold cyan]>[/] ", cmd_quit[0])
 
             if c == "":
                 c = cmd_next[0]
