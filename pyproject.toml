@@ -8,9 +8,9 @@ version = "0.2.0"
 description = "Terminal-based nhentai reader with sixel image support"
 readme = "README.md"
 license = { text = "GPL-2.0-only" }
-requires-python = ">=3.9"
+requires-python = ">=3.10"
 dependencies = [
-    "requests>=2.34.2",
+    "requests>=2.32.0",
     "Pillow>=11.0.0",
     "rich>=13.0",
 ]
@@ -22,6 +22,7 @@ dev = [
     "pytest-cov>=6.0",
     "ruff>=0.9",
     "mypy>=1.15",
+    "types-requests>=2.31.0",
     "pre-commit>=4.0",
 ]
 

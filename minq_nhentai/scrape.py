@@ -1,5 +1,7 @@
 """nhentai API v2 access helpers."""
 
+from __future__ import annotations
+
 import re
 import time
 import urllib.parse

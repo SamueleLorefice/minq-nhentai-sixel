@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import threading
 import time
 from typing import Any
@@ -37,9 +39,7 @@ class Tag:
         return f"\u25b8 {self.prefix}: {self.name} ({self.count})"
 
     def __rich__(self) -> Text:
-        return Text.from_markup(
-            f"[{self.style}]\u25b8 {self.prefix}:[/] [bold]{self.name}[/] ({self.count})"
-        )
+        return Text.from_markup(f"[{self.style}]\u25b8 {self.prefix}:[/] [bold]{self.name}[/] ({self.count})")
 
 
 class Language(Tag):
@@ -190,6 +190,8 @@ class Hentai:
 
     def __eq__(self, other: object) -> bool:
         if type(self) is not type(other):
+            return False
+        if not isinstance(other, Hentai):
             return False
         return self.id_ == other.id_
 

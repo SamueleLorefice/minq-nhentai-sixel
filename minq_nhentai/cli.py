@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import argparse
 import sys
 
@@ -80,12 +82,6 @@ def main() -> None:
     elif args.viu:
         image_backend = IMAGE_BACKEND_VIU
 
-    try:
-        configure_image_backend(image_backend)
-    except RuntimeError as exc:
-        print(exc)
-        sys.exit(1)
-
     gallery_id: int | None = None
     if args.gallery is not None:
         gallery_text: str = args.gallery.strip()
@@ -96,6 +92,12 @@ def main() -> None:
             print(f"Gallery code must be numeric: {args.gallery}")
             sys.exit(1)
         gallery_id = int(gallery_text)
+
+    try:
+        configure_image_backend(image_backend)
+    except RuntimeError as exc:
+        print(exc)
+        sys.exit(1)
 
     interactive_hentai_enjoyment(
         search_term=args.search,
