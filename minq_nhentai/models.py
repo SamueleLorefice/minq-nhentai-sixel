@@ -189,6 +189,7 @@ class Hentai:
     def __eq__(self, other: object) -> bool:
         if type(self) is not type(other):
             return False
+        assert isinstance(other, Hentai)
         return self.id_ == other.id_
 
     def __getattr__(self, name: str) -> Any:
