@@ -1,5 +1,7 @@
 """Tests for app.py - search building, filter validation, and command handling."""
 
+from __future__ import annotations
+
 from typing import Any
 from unittest.mock import MagicMock, patch
 
