@@ -37,9 +37,7 @@ class Tag:
         return f"\u25b8 {self.prefix}: {self.name} ({self.count})"
 
     def __rich__(self) -> Text:
-        return Text.from_markup(
-            f"[{self.style}]\u25b8 {self.prefix}:[/] [bold]{self.name}[/] ({self.count})"
-        )
+        return Text.from_markup(f"[{self.style}]\u25b8 {self.prefix}:[/] [bold]{self.name}[/] ({self.count})")
 
 
 class Language(Tag):
